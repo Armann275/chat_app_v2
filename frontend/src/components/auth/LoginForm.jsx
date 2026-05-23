@@ -30,6 +30,12 @@ export default function LoginForm() {
       const redirectTo = location.state?.from ?? '/';
       navigate(redirectTo, { replace: true });
     } catch (err) {
+      const details = err?.response?.data?.details;
+      if (details?.requiresEmailVerification) {
+        toast.info('Please verify your email to continue');
+        navigate('/verify-email', { replace: true });
+        return;
+      }
       const message =
         err?.response?.data?.message ?? 'Could not log in. Please try again.';
       toast.error(message);

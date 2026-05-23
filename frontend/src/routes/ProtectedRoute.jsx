@@ -13,6 +13,10 @@ export default function ProtectedRoute() {
     );
   }
 
+  if (status === 'pending_verification') {
+    return <Navigate to="/verify-email" replace />;
+  }
+
   if (status !== 'authed') {
     return <Navigate to="/login" replace state={{ from: location.pathname }} />;
   }

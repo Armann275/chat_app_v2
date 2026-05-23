@@ -10,6 +10,16 @@ export async function login(payload) {
   return data.data;
 }
 
+export async function verifyEmail(payload) {
+  const { data } = await apiClient.post('/auth/verify-email', payload);
+  return data.data;
+}
+
+export async function resendCode(payload) {
+  const { data } = await apiClient.post('/auth/resend-code', payload);
+  return data.data;
+}
+
 let refreshInFlight = null;
 
 export async function refresh() {

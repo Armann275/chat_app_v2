@@ -1,23 +1,23 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
+import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import Avatar from '@/components/ui/Avatar';
 import Button from '@/components/ui/Button';
-import Input from '@/components/ui/Input';
 import Spinner from '@/components/ui/Spinner';
-import { useProfileQuery, useUpdateProfileMutation } from '@/queries/user.queries';
+import {
+  useProfileQuery,
+  useUpdateProfileMutation,
+} from '@/queries/user.queries';
+import {
+  useUploadCustomPhotoMutation,
+  useClearCustomPhotoMutation,
+} from '@/queries/avatar.queries';
 import PrivacySettings from '@/components/settings/PrivacySettings';
 
 const profileSchema = z.object({
-  avatarUrl: z
-    .string()
-    .trim()
-    .max(1024, 'Must be 1024 characters or fewer')
-    .url('Must be a valid URL')
-    .or(z.literal(''))
-    .optional(),
   bio: z
     .string()
     .max(500, 'Bio must be 500 characters or fewer')
@@ -27,37 +27,65 @@ const profileSchema = z.object({
 export default function ProfilePage() {
   const profileQuery = useProfileQuery();
   const updateMutation = useUpdateProfileMutation();
+  const uploadCustom = useUploadCustomPhotoMutation();
+  const clearCustom = useClearCustomPhotoMutation();
+  const fileInputRef = useRef(null);
+  const navigate = useNavigate();
 
   const {
     register,
     handleSubmit,
     reset,
-    watch,
     formState: { errors, isDirty },
   } = useForm({
     resolver: zodResolver(profileSchema),
-    defaultValues: { avatarUrl: '', bio: '' },
+    defaultValues: { bio: '' },
   });
 
   useEffect(() => {
     if (profileQuery.data) {
-      reset({
-        avatarUrl: profileQuery.data.avatarUrl ?? '',
-        bio: profileQuery.data.bio ?? '',
-      });
+      reset({ bio: profileQuery.data.bio ?? '' });
     }
   }, [profileQuery.data, reset]);
 
   const onSubmit = async (values) => {
     try {
       await updateMutation.mutateAsync({
-        avatarUrl: values.avatarUrl?.trim() ? values.avatarUrl.trim() : null,
         bio: values.bio?.length ? values.bio : null,
       });
       toast.success('Profile updated');
     } catch (err) {
       const message =
         err?.response?.data?.message ?? 'Could not update profile. Please try again.';
+      toast.error(message);
+    }
+  };
+
+  const handleCustomFile = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please pick an image file');
+      return;
+    }
+    try {
+      await uploadCustom.mutateAsync(file);
+      toast.success('Photo updated');
+    } catch (err) {
+      const message =
+        err?.response?.data?.message ?? 'Could not upload photo.';
+      toast.error(message);
+    }
+  };
+
+  const handleClearCustom = async () => {
+    try {
+      await clearCustom.mutateAsync();
+      toast.success('Custom photo removed');
+    } catch (err) {
+      const message =
+        err?.response?.data?.message ?? 'Could not remove photo.';
       toast.error(message);
     }
   };
@@ -79,7 +107,7 @@ export default function ProfilePage() {
   }
 
   const user = profileQuery.data;
-  const previewAvatar = watch('avatarUrl');
+  const hasCustom = user.avatarSource === 'custom' && user.customPhotoUrl;
 
   return (
     <div className="mx-auto w-full max-w-2xl p-6">
@@ -88,8 +116,8 @@ export default function ProfilePage() {
       </h1>
 
       <section className="mt-6 flex items-center gap-4 rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
-        <Avatar src={previewAvatar || user.avatarUrl} name={user.username} size="xl" />
-        <div className="min-w-0">
+        <Avatar user={user} size="xl" />
+        <div className="min-w-0 flex-1">
           <p className="truncate text-lg font-semibold text-slate-900 dark:text-slate-100">
             {user.username}
           </p>
@@ -99,19 +127,58 @@ export default function ProfilePage() {
         </div>
       </section>
 
+      <section className="mt-6 space-y-3 rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
+        <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-100">
+          Avatar
+        </h2>
+        <p className="text-xs text-slate-500 dark:text-slate-400">
+          {user.avatarSource === 'custom'
+            ? 'A custom photo is currently shown.'
+            : user.avatarSource === 'generated'
+              ? 'Your generated avatar is currently shown.'
+              : 'No avatar yet — scan one or upload a photo.'}
+        </p>
+        <div className="flex flex-wrap gap-2">
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={() => navigate('/avatar-setup')}
+          >
+            {user.avatarSource === 'generated' ? 'Change avatar' : 'Pick avatar'}
+          </Button>
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={uploadCustom.isPending}
+          >
+            {uploadCustom.isPending ? 'Uploading…' : 'Upload custom photo'}
+          </Button>
+          {hasCustom && (
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={handleClearCustom}
+              disabled={clearCustom.isPending}
+            >
+              Remove custom photo
+            </Button>
+          )}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={handleCustomFile}
+          />
+        </div>
+      </section>
+
       <form
         onSubmit={handleSubmit(onSubmit)}
         className="mt-6 space-y-4 rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900"
         noValidate
       >
-        <Input
-          label="Avatar URL"
-          type="url"
-          placeholder="https://…"
-          error={errors.avatarUrl?.message}
-          {...register('avatarUrl')}
-        />
-
         <div className="space-y-1">
           <label
             htmlFor="bio"
@@ -137,17 +204,12 @@ export default function ProfilePage() {
           <Button
             type="button"
             variant="secondary"
-            onClick={() =>
-              reset({ avatarUrl: user.avatarUrl ?? '', bio: user.bio ?? '' })
-            }
+            onClick={() => reset({ bio: user.bio ?? '' })}
             disabled={!isDirty || updateMutation.isPending}
           >
             Reset
           </Button>
-          <Button
-            type="submit"
-            disabled={!isDirty || updateMutation.isPending}
-          >
+          <Button type="submit" disabled={!isDirty || updateMutation.isPending}>
             {updateMutation.isPending ? 'Saving…' : 'Save changes'}
           </Button>
         </div>

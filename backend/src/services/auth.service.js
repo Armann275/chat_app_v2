@@ -1,7 +1,10 @@
 import jwt from 'jsonwebtoken';
-import { randomUUID } from 'node:crypto';
+import { randomUUID, randomInt } from 'node:crypto';
 import * as userRepo from '../repositories/user.repository.js';
 import * as refreshRepo from '../repositories/refreshToken.repository.js';
+import * as verificationRepo from '../repositories/emailVerification.repository.js';
+import * as emailService from './email.service.js';
+import * as locationService from './location.service.js';
 import {
   signAccessToken,
   signRefreshToken,
@@ -14,7 +17,21 @@ import {
   ConflictError,
   UnauthorizedError,
   NotFoundError,
+  EmailNotVerifiedError,
+  InvalidVerificationCodeError,
+  VerificationCodeExpiredError,
+  TooManyVerificationAttemptsError,
+  TooSoonError,
 } from '../errors/errors.js';
+import { logger } from '../config/logger.js';
+
+const CODE_TTL_MS = 15 * 60 * 1000;
+const RESEND_COOLDOWN_MS = 60 * 1000;
+const MAX_ATTEMPTS = 5;
+
+function generateCode() {
+  return String(randomInt(0, 1_000_000)).padStart(6, '0');
+}
 
 async function issueTokens(user) {
   const accessToken = signAccessToken({ sub: user.id });
@@ -32,19 +49,120 @@ async function issueTokens(user) {
   return { accessToken, refreshToken };
 }
 
+async function createAndStoreCode(userId) {
+  await verificationRepo.invalidateAllForUser(userId);
+  const code = generateCode();
+  const codeHash = await password.hash(code);
+  const expiresAt = new Date(Date.now() + CODE_TTL_MS);
+  await verificationRepo.create({ userId, codeHash, expiresAt });
+  return code;
+}
+
+function dispatchVerificationEmail(user, code) {
+  if (!process.env.NODE_ENV || process.env.NODE_ENV !== 'production') {
+    logger.info(`[dev] Verification code for ${user.email}: ${code}`);
+  }
+  emailService.sendVerificationCode(user.email, code).catch((err) => {
+    logger.warn('Verification email send failed (code still valid in DB)', {
+      userId: user.id,
+      email: user.email,
+      message: err.message,
+    });
+  });
+}
+
+async function issueVerificationCode(user) {
+  const code = await createAndStoreCode(user.id);
+  dispatchVerificationEmail(user, code);
+}
+
 export async function register({ username, email, password: plain }) {
   const [byEmail, byUsername] = await Promise.all([
     userRepo.findByEmail(email),
     userRepo.findByUsername(username),
   ]);
-  if (byEmail) throw new ConflictError('Email already in use');
-  if (byUsername) throw new ConflictError('Username already in use');
+
+  if (byEmail?.email_verified_at) {
+    throw new ConflictError('Email already in use');
+  }
+  if (byUsername && byUsername.id !== byEmail?.id) {
+    throw new ConflictError('Username already in use');
+  }
 
   const passwordHash = await password.hash(plain);
-  const user = await userRepo.createUser({ username, email, passwordHash });
+  const user = byEmail
+    ? await userRepo.replaceUnverifiedCredentials(byEmail.id, { username, passwordHash })
+    : await userRepo.createUser({ username, email, passwordHash });
 
-  const tokens = await issueTokens(user);
-  return { user: publicUser(user), ...tokens };
+  await locationService.ensureDefaultPrivacy(user.id).catch((err) => {
+    logger.warn('Could not seed default location privacy', {
+      userId: user.id,
+      message: err.message,
+    });
+  });
+
+  await issueVerificationCode(user);
+
+  return {
+    user: publicUser(user),
+    requiresEmailVerification: true,
+  };
+}
+
+export async function verifyEmail({ userId, code }) {
+  const user = await userRepo.findById(userId);
+  if (!user) throw new NotFoundError('User not found');
+  if (user.email_verified_at) {
+    const tokens = await issueTokens(user);
+    return { user: publicUser(user), ...tokens };
+  }
+
+  const active = await verificationRepo.findActiveByUserId(userId);
+  if (!active) throw new InvalidVerificationCodeError();
+
+  if (new Date(active.expires_at).getTime() <= Date.now()) {
+    await verificationRepo.markConsumed(active.id);
+    throw new VerificationCodeExpiredError();
+  }
+
+  if (active.attempts >= MAX_ATTEMPTS) {
+    throw new TooManyVerificationAttemptsError();
+  }
+
+  const ok = await password.compare(code, active.code_hash);
+  if (!ok) {
+    const attempts = await verificationRepo.incrementAttempts(active.id);
+    if (attempts >= MAX_ATTEMPTS) {
+      throw new TooManyVerificationAttemptsError();
+    }
+    throw new InvalidVerificationCodeError();
+  }
+
+  await verificationRepo.markConsumed(active.id);
+  const updated = await userRepo.markEmailVerified(userId);
+  const tokens = await issueTokens(updated);
+  return { user: publicUser(updated), ...tokens };
+}
+
+export async function resendVerificationCode({ userId }) {
+  const user = await userRepo.findById(userId);
+  if (!user) throw new NotFoundError('User not found');
+  if (user.email_verified_at) {
+    throw new ConflictError('Email already verified');
+  }
+
+  const active = await verificationRepo.findActiveByUserId(userId);
+  if (active) {
+    const since = Date.now() - new Date(active.created_at).getTime();
+    if (since < RESEND_COOLDOWN_MS) {
+      throw new TooSoonError(
+        `Please wait ${Math.ceil((RESEND_COOLDOWN_MS - since) / 1000)}s before requesting a new code`,
+      );
+    }
+  }
+
+  await issueVerificationCode(user);
+  return { sent: true };
 }
 
 export async function login({ email, password: plain }) {
@@ -53,6 +171,16 @@ export async function login({ email, password: plain }) {
 
   const ok = await password.compare(plain, row.password_hash);
   if (!ok) throw new UnauthorizedError('Invalid credentials');
+
+  if (!row.email_verified_at) {
+    await issueVerificationCode(row).catch((err) => {
+      logger.warn('Could not re-send verification code on login', {
+        userId: row.id,
+        message: err.message,
+      });
+    });
+    throw new EmailNotVerifiedError(row.id);
+  }
 
   const tokens = await issueTokens(row);
   return { user: publicUser(row), ...tokens };

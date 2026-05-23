@@ -41,7 +41,8 @@ export async function listFriendsOf(userId, { limit = 100, offset = 0 } = {}) {
   const rows = await dataSource.query(
     `
       SELECT u.id, u.username, u.email, u.avatar_url, u.bio,
-             u.last_seen_at, u.created_at, u.updated_at,
+             u.last_seen_at, u.custom_photo_url, u.avatar_glb_url, u.avatar_source,
+             u.email_verified_at, u.created_at, u.updated_at,
              f.created_at AS friendship_created_at
         FROM friendships f
         JOIN users u

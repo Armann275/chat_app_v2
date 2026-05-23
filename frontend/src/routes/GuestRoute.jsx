@@ -1,8 +1,9 @@
-import { Navigate, Outlet } from 'react-router-dom';
+import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { useAuthStore } from '@/stores/authStore';
 
 export default function GuestRoute() {
   const status = useAuthStore((s) => s.status);
+  const location = useLocation();
 
   if (status === 'loading') {
     return (
@@ -14,6 +15,10 @@ export default function GuestRoute() {
 
   if (status === 'authed') {
     return <Navigate to="/" replace />;
+  }
+
+  if (status === 'pending_verification' && location.pathname !== '/verify-email') {
+    return <Navigate to="/verify-email" replace />;
   }
 
   return <Outlet />;

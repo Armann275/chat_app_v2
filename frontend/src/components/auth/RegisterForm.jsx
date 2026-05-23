@@ -34,7 +34,8 @@ export default function RegisterForm() {
   const onSubmit = async (values) => {
     try {
       await registerMutation.mutateAsync(values);
-      navigate('/', { replace: true });
+      toast.success('Check your email for a verification code');
+      navigate('/verify-email', { replace: true });
     } catch (err) {
       const message =
         err?.response?.data?.message ?? 'Could not create account. Please try again.';

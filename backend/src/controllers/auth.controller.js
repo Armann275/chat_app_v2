@@ -26,9 +26,25 @@ function clearRefreshCookie(res) {
 }
 
 export async function register(req, res) {
-  const { user, accessToken, refreshToken } = await authService.register(req.body);
+  const result = await authService.register(req.body);
+  res.status(201).json({
+    success: true,
+    data: {
+      user: result.user,
+      requiresEmailVerification: true,
+    },
+  });
+}
+
+export async function verifyEmail(req, res) {
+  const { user, accessToken, refreshToken } = await authService.verifyEmail(req.body);
   setRefreshCookie(res, refreshToken);
-  res.status(201).json({ success: true, data: { user, accessToken } });
+  res.json({ success: true, data: { user, accessToken } });
+}
+
+export async function resendCode(req, res) {
+  const result = await authService.resendVerificationCode(req.body);
+  res.json({ success: true, data: result });
 }
 
 export async function login(req, res) {

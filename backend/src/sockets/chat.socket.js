@@ -1,6 +1,7 @@
 import * as chatRepo from '../repositories/chat.repository.js';
 import * as userRepo from '../repositories/user.repository.js';
 import * as messageService from '../services/message.service.js';
+import * as locationService from '../services/location.service.js';
 import { logger } from '../config/logger.js';
 
 const chatRoom = (chatId) => `chat:${chatId}`;
@@ -47,6 +48,21 @@ export function registerChatHandlers(io) {
       try {
         await messageService.markSeen(userId, chatId, messageId);
         if (typeof ack === 'function') ack({ ok: true });
+      } catch (err) {
+        if (typeof ack === 'function') {
+          ack({ ok: false, code: err.code ?? 'INTERNAL_ERROR', message: err.message });
+        }
+      }
+    });
+
+    socket.on('location:update', async ({ latitude, longitude }, ack) => {
+      try {
+        const result = await locationService.updateLocation(
+          userId,
+          Number(latitude),
+          Number(longitude),
+        );
+        if (typeof ack === 'function') ack({ ok: true, location: result });
       } catch (err) {
         if (typeof ack === 'function') {
           ack({ ok: false, code: err.code ?? 'INTERNAL_ERROR', message: err.message });
