@@ -159,8 +159,8 @@ All in `import.meta.env`, prefixed with `VITE_`. Validate in `src/config/env.js`
 
 Required:
 ```
-VITE_API_BASE_URL=http://localhost:3000
-VITE_SOCKET_URL=http://localhost:3000
+VITE_API_BASE_URL=http://localhost:3005
+VITE_SOCKET_URL=http://localhost:3005
 ```
 
 ## Testing (Vitest)

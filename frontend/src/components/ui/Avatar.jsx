@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { cn } from '@/utils/cn';
+import { resolveAttachmentUrl } from '@/api/upload.api';
 
 const sizes = {
   xs: 'h-6 w-6 text-[10px]',
@@ -17,9 +18,18 @@ function initialsFor(name) {
   return (first + second).toUpperCase() || name[0].toUpperCase();
 }
 
-export default function Avatar({ src, name, size = 'md', className }) {
+function pickAvatarUrl(user, srcOverride) {
+  if (srcOverride !== undefined) return srcOverride;
+  if (!user) return null;
+  return user.displayAvatarUrl ?? user.customPhotoUrl ?? user.avatarUrl ?? null;
+}
+
+export default function Avatar({ src, user, name, size = 'md', className }) {
   const [broken, setBroken] = useState(false);
-  const showImage = src && !broken;
+  const rawUrl = pickAvatarUrl(user, src);
+  const resolvedUrl = rawUrl ? resolveAttachmentUrl(rawUrl) : null;
+  const showImage = resolvedUrl && !broken;
+  const displayName = name ?? user?.username;
 
   return (
     <span
@@ -28,17 +38,17 @@ export default function Avatar({ src, name, size = 'md', className }) {
         sizes[size],
         className,
       )}
-      aria-label={name ?? 'avatar'}
+      aria-label={displayName ?? 'avatar'}
     >
       {showImage ? (
         <img
-          src={src}
-          alt={name ?? ''}
+          src={resolvedUrl}
+          alt={displayName ?? ''}
           className="h-full w-full object-cover"
           onError={() => setBroken(true)}
         />
       ) : (
-        <span>{initialsFor(name)}</span>
+        <span>{initialsFor(displayName)}</span>
       )}
     </span>
   );

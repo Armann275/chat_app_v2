@@ -8,6 +8,7 @@ export const authKeys = {
 
 export function useLoginMutation() {
   const setAuth = useAuthStore((s) => s.setAuth);
+  const setPendingVerification = useAuthStore((s) => s.setPendingVerification);
   const queryClient = useQueryClient();
 
   return useMutation({
@@ -16,19 +17,42 @@ export function useLoginMutation() {
       setAuth({ user, accessToken });
       queryClient.setQueryData(authKeys.me, user);
     },
+    onError: (err) => {
+      const details = err?.response?.data?.details;
+      if (details?.requiresEmailVerification && details.userId) {
+        setPendingVerification({ userId: details.userId });
+      }
+    },
   });
 }
 
 export function useRegisterMutation() {
+  const setPendingVerification = useAuthStore((s) => s.setPendingVerification);
+
+  return useMutation({
+    mutationFn: authApi.register,
+    onSuccess: ({ user }) => {
+      setPendingVerification({ userId: user.id, email: user.email });
+    },
+  });
+}
+
+export function useVerifyEmailMutation() {
   const setAuth = useAuthStore((s) => s.setAuth);
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: authApi.register,
+    mutationFn: authApi.verifyEmail,
     onSuccess: ({ user, accessToken }) => {
       setAuth({ user, accessToken });
       queryClient.setQueryData(authKeys.me, user);
     },
+  });
+}
+
+export function useResendCodeMutation() {
+  return useMutation({
+    mutationFn: authApi.resendCode,
   });
 }
 

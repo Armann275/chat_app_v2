@@ -7,6 +7,8 @@ import { privacyKeys } from '@/queries/privacy.queries';
 import { appendToThreadCache } from '@/queries/thread.queries';
 import { useSocketStore } from '@/stores/socketStore';
 import { useLinkPreviewStore } from '@/stores/linkPreviewStore';
+import { useMapStore } from '@/stores/mapStore';
+import { mapKeys } from '@/queries/map.queries';
 import { SocketEvents } from './events';
 
 function upsertMessageInList(queryClient, chatId, message) {
@@ -191,6 +193,15 @@ export function registerSocketHandlers(socket, queryClient) {
     queryClient.invalidateQueries({ queryKey: chatKeys.detail(chatId) });
     queryClient.invalidateQueries({ queryKey: chatKeys.list });
     queryClient.invalidateQueries({ queryKey: chatKeys.requests });
+  });
+
+  socket.on(SocketEvents.FriendLocation, (payload) => {
+    useMapStore.getState().upsertFriend(payload);
+    queryClient.invalidateQueries({ queryKey: mapKeys.friends });
+  });
+  socket.on(SocketEvents.FriendLocationCleared, ({ userId }) => {
+    useMapStore.getState().removeFriend(userId);
+    queryClient.invalidateQueries({ queryKey: mapKeys.friends });
   });
 }
 

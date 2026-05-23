@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { MessagesSquare, Plus, Users, UserPlus, X } from 'lucide-react';
+import { MessagesSquare, Plus, Users, UserPlus, X, Map as MapIcon } from 'lucide-react';
 import ChatList from '@/components/chat/ChatList';
 import RequestChatsList from '@/components/chat/RequestChatsList';
 import NewChatModal from '@/components/chat/NewChatModal';
@@ -122,6 +122,13 @@ export default function Sidebar() {
         >
           <UserPlus className="h-4 w-4" />
           Friends
+        </Link>
+        <Link
+          to="/map"
+          className="flex items-center gap-2 border-t border-slate-200 px-4 py-3 text-sm text-slate-600 hover:bg-slate-50 dark:border-slate-800 dark:text-slate-300 dark:hover:bg-slate-800"
+        >
+          <MapIcon className="h-4 w-4" />
+          Map
         </Link>
 
         <NewChatModal open={directOpen} onClose={() => setDirectOpen(false)} />
