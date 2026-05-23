@@ -1,0 +1,3267 @@
+Bonus Platform API
+Amusnet Bonus System Documentation
+Award Manual Bonus
+This method is used whenever the Casino Operator would like to award Bonus directly to specified Player without creating a tracked Promotion.
+
+Authorizations:
+ApiKeyAuth
+ API Key: ApiKeyAuth
+Header parameter name: X-Api-Token
+Request Body schema: application/json
+required
+The settings needed for awarding a Bonus to a group of players.
+
+id
+required
+string <uuid>
+The idempotency key of the request. Must be a UUID represented by a standard 36-char string.
+
+playerIds
+required
+Array of strings [ 1 .. 5000 ] items [ items [ 1 .. 64 ] characters ]
+The identifiers of the players to be awarded this bonus. A maximum of 5 000 (five thousand) players may be awarded per request. If the total number of players exceeds this limit, split the request into multiple batches.
+
+skinName
+required
+string [ 1 .. 128 ] characters
+The name of the players' skin.
+
+amount	
+integer <int64> > 0
+The quantity of bonuses being awarded per player. Constraints: The parameter is required for all award types except COUNTDOWN_FREE_SPIN, for which it may be omitted or set to null. The parameter must be set to 1 for FREE_BUY_BONUS.
+
+type
+required
+string
+Enum: "FREE_SPIN" "FREE_BUY_BONUS" "GOLDEN_CHIP" "COUNTDOWN_FREE_SPIN"
+The type of the bonuses being awarded.
+
+typeConfiguration	
+object
+Any additional configuration details needed for the specified bonus type.
+
+freeBuyBonusConfiguration	
+object
+Configuration for "Free Buy Bonus" bonuses, defining the awarded feature. Constraint: The parameter is required for FREE_BUY_BONUS
+
+goldenChipConfiguration	
+object
+Configuration for "Golden Chip" bonuses, defining the betting restrictions. Constraint: The parameter is required for GOLDEN_CHIP.
+
+countdownFreeSpinConfiguration	
+object
+Configuration for "Countdown Free Spin" bonuses. Constraint: The parameter is required for COUNTDOWN_FREE_SPIN
+
+betValueStrategy
+required
+string
+Enum: "MINIMUM" "EXACT" "CLOSEST" "CLOSEST_LOWER" "CLOSEST_HIGHER"
+The strategy used for determining the bet value.
+
+betValue	
+number > 0
+The value of the bonuses awarded. The parameter may be omitted if the Bet Value Strategy used is MINIMUM. For any other Bet Value Strategy, the parameter is required.
+
+currency
+required
+string = 3 characters
+The currency code for the bonuses, defined by the three-letter currency code as per ISO-4217.
+
+games
+required
+Array of integers <int32> [ 1 .. 1000 ] items [ items <int32 > > 0 ]
+The unique identifiers of the games eligible for the bonuses.
+
+claimByStrategy	
+string
+Enum: "RELATIVE_TO_AWARD" "CUSTOM"
+The strategy for determining the deadline by which the bonuses must be claimed.
+
+claimByMinutes	
+integer <int64> [ 0 .. 1440000 ]
+The number of minutes the bonuses are available to be claimed after being awarded. Required if Award Manual Bonuses Claim By Strategy is RELATIVE_TO_AWARD.
+
+claimByDateTime	
+string <date-time>
+The deadline by which bonuses must be claimed. (UTC time zone)
+
+expirationStrategy	
+string
+Enum: "RELATIVE_TO_CLAIM" "CUSTOM"
+The strategy for determining when the bonuses will expire.
+
+expirationMinutes	
+integer <int64> ( 0 .. 1440000 ]
+The number of minutes the bonus is valid for after being claimed. Required if expirationStrategy is RELATIVE_TO_CLAIM.
+
+expirationDateTime	
+string <date-time>
+The exact date when the bonus will expire. Required if expirationStrategy is CUSTOM.
+
+Responses
+200 Bonuses awarded successfully.
+Response Schema: application/json
+Array 
+id
+required
+string
+The unique identifier of the bonus.
+
+groupId
+required
+string
+The unique identifier of the group this bonus is associated with. If the bonus is awarded manually, the groupID represents the 'bundleID' assigned to that specific set of bonuses; if the bonus is linked to a promotion, the groupID matches the 'promotionID'.
+
+sourceId	
+string
+The unique identifier of the associated source promotional tool that awarded the bonus (example Promotion ID or Tournament ID), if applicable.'.
+
+groupType
+required
+string
+Enum: "PROMOTION" "MANUAL"
+The type of the group this bonus belongs to.
+
+playerId
+required
+string
+The identifier of the player that received this bonus.
+
+type
+required
+string
+Enum: "FREE_SPIN" "FREE_BUY_BONUS" "LUCKY_SPIN" "GOLDEN_CHIP" "COUNTDOWN_FREE_SPIN"
+The type of the bonus awarded.
+
+typeConfiguration	
+object
+Any additional configuration details needed for the specified bonus type.
+
+freeBuyBonusConfiguration	
+object
+Configuration for "Free Buy Bonus" bonuses, defining the awarded feature. Constraint: The parameter is required for FREE_BUY_BONUS
+
+goldenChipConfiguration	
+object
+Configuration for "Golden Chip" bonuses, defining the betting restrictions. Constraint: The parameter is required for GOLDEN_CHIP.
+
+countdownFreeSpinConfiguration	
+object
+Configuration for "Countdown Free Spin" bonuses. Constraint: The parameter is required for COUNTDOWN_FREE_SPIN
+
+awardedAmount	
+integer <int64>
+The total amount awarded. Constraint: The parameter is provided for all award types except COUNTDOWN_FREE_SPIN, for which it is omitted or set to null.
+
+consumedAmount
+required
+integer <int64>
+The amount that has already been consumed.
+
+revertedAmount
+required
+integer <int64>
+The amount that has been reverted.
+
+remainingAmount	
+integer <int64>
+The remaining amount available to be consumed. Constraint: The parameter is provided for all award types except COUNTDOWN_FREE_SPIN, for which it is omitted or set to null.
+
+state
+required
+string
+Enum: "AWARDED" "CLAIMED" "IN_PLAY" "CONSUMED" "REVERTED" "UNCLAIMED" "EXPIRED" "DECLINED" "REVOKED"
+The current state of the bonus.
+
+claimByStrategy
+required
+string
+Enum: "RELATIVE_TO_AWARD" "CUSTOM"
+The strategy for determining the deadline by which the bonuses must be claimed.
+
+claimByMinutes	
+integer <int64> [ 0 .. 1440000 ]
+The number of minutes the bonuses are available to be claimed after being awarded. Will be set when the claimByStrategy is RELATIVE_TO_AWARD.
+
+claimByDateTime
+required
+string <date-time>
+The deadline by which the bonus must be claimed. (UTC time zone)
+
+expirationStrategy
+required
+string
+Enum: "RELATIVE_TO_CLAIM" "CUSTOM"
+The strategy for determining when the bonuses will expire.
+
+expirationMinutes	
+integer <int64> ( 0 .. 1440000 ]
+The number of minutes the bonus is valid for after being claimed. Will be set when the expirationStrategy is RELATIVE_TO_CLAIM.
+
+expirationDateTime	
+string <date-time>
+The deadline by which the bonus, once claimed, must be used. (UTC time zone)
+
+games
+required
+Array of integers <int32> [ items <int32 > ]
+The unique identifiers of the games eligible for the bonuses.
+
+inPlayGame	
+integer <int32>
+The unique identifier of the game in which the bonus is currently being played, if applicable.
+
+portals
+required
+Array of objects (Member)
+The portals where this bonus is available.
+
+currency
+required
+string
+The currency code for the bonuses, defined by the three-letter currency code as per ISO-4217.
+
+betValueStrategy
+required
+string
+Enum: "MINIMUM" "EXACT" "CLOSEST" "CLOSEST_LOWER" "CLOSEST_HIGHER"
+The strategy used for determining the bet value.
+
+betValue	
+number
+The value of the bonus. The parameter may be omitted if the Bet Value Strategy used is MINIMUM. For any other Bet Value Strategy, the parameter is required.
+
+400 Bad request due to validation errors.
+Response Schema: application/json
+message	
+string
+details	
+Array of objects (ErrorResponse.ErrorResponseDetails)
+errorCode	
+string
+401 Unauthorized access.
+Response Schema: application/json
+message	
+string
+details	
+Array of objects (ErrorResponse.ErrorResponseDetails)
+errorCode	
+string
+403 Insufficient permissions.
+Response Schema: application/json
+message	
+string
+details	
+Array of objects (ErrorResponse.ErrorResponseDetails)
+errorCode	
+string
+5xx Internal server error.
+
+post
+/bonuses
+
+Request samples
+Payload
+
+Copy
+Expand allCollapse all
+{
+"id": "11560041-76b0-4d81-8f0e-d34b1bd77175",
+"playerIds": [
+"Player A",
+"Player B"
+],
+"skinName": "Skin Name",
+"amount": 5,
+"type": "FREE_SPIN",
+"betValueStrategy": "EXACT",
+"betValue": "0.15",
+"currency": "EUR",
+"games": [
+529,
+530
+],
+"claimByDateTime": "2024-12-31T23:59:59Z",
+"expirationMinutes": 43200
+}
+Response samples
+200400401403
+
+Copy
+Expand allCollapse all
+[
+{
+"id": "641228496479505084",
+"groupId": "641228495296711302",
+"groupType": "MANUAL",
+"playerId": "Player A",
+"type": "FREE_SPIN",
+"awardedAmount": 5,
+"consumedAmount": 1,
+"remainingAmount": 4,
+"state": "IN_PLAY",
+"claimByDateTime": "2024-12-31T23:59:59Z",
+"expirationDateTime": "2024-12-31T23:59:59Z",
+"games": [],
+"inPlayGame": 530,
+"portals": [],
+"currency": "EUR",
+"betValueStrategy": "EXACT",
+"betValue": "0.15"
+}
+]
+Retrieve a list of Bonuses matching the provided filter criteria.
+Authorizations:
+ApiKeyAuth
+query Parameters
+id	
+string
+Filter bonuses by their unique identifier.
+
+groupTypes	
+Array of strings (GroupType)
+Items Enum: "PROMOTION" "MANUAL"
+Filter bonuses by their group types.
+
+sourceId	
+string
+Filter bonuses by the unique identifier of their associated source promotional tool (ex. Promotion ID or Tournament ID).
+
+types	
+Array of strings (BonusType)
+Items Enum: "FREE_SPIN" "FREE_BUY_BONUS" "LUCKY_SPIN" "GOLDEN_CHIP" "COUNTDOWN_FREE_SPIN"
+Filter bonuses by their types.
+
+states	
+Array of strings (BonusState)
+Items Enum: "AWARDED" "CLAIMED" "IN_PLAY" "CONSUMED" "REVERTED" "UNCLAIMED" "EXPIRED" "DECLINED" "REVOKED"
+Filter bonuses by their states.
+
+offset	
+integer <int64> >= 0
+Set the pagination offset, specifying the number of records to skip.
+
+limit	
+integer <int64> > 0
+Set the pagination limit, specifying the maximum number of records to return.
+
+Responses
+200 Bonuses retrieved successfully.
+Response Schema: application/json
+Array 
+id
+required
+string
+The unique identifier of the bonus.
+
+groupId
+required
+string
+The unique identifier of the group this bonus is associated with. If the bonus is awarded manually, the groupID represents the 'bundleID' assigned to that specific set of bonuses; if the bonus is linked to a promotion, the groupID matches the 'promotionID'.
+
+sourceId	
+string
+The unique identifier of the associated source promotional tool that awarded the bonus (example Promotion ID or Tournament ID), if applicable.'.
+
+groupType
+required
+string
+Enum: "PROMOTION" "MANUAL"
+The type of the group this bonus belongs to.
+
+playerId
+required
+string
+The identifier of the player that received this bonus.
+
+type
+required
+string
+Enum: "FREE_SPIN" "FREE_BUY_BONUS" "LUCKY_SPIN" "GOLDEN_CHIP" "COUNTDOWN_FREE_SPIN"
+The type of the bonus awarded.
+
+typeConfiguration	
+object
+Any additional configuration details needed for the specified bonus type.
+
+freeBuyBonusConfiguration	
+object
+Configuration for "Free Buy Bonus" bonuses, defining the awarded feature. Constraint: The parameter is required for FREE_BUY_BONUS
+
+goldenChipConfiguration	
+object
+Configuration for "Golden Chip" bonuses, defining the betting restrictions. Constraint: The parameter is required for GOLDEN_CHIP.
+
+countdownFreeSpinConfiguration	
+object
+Configuration for "Countdown Free Spin" bonuses. Constraint: The parameter is required for COUNTDOWN_FREE_SPIN
+
+awardedAmount	
+integer <int64>
+The total amount awarded. Constraint: The parameter is provided for all award types except COUNTDOWN_FREE_SPIN, for which it is omitted or set to null.
+
+consumedAmount
+required
+integer <int64>
+The amount that has already been consumed.
+
+revertedAmount
+required
+integer <int64>
+The amount that has been reverted.
+
+remainingAmount	
+integer <int64>
+The remaining amount available to be consumed. Constraint: The parameter is provided for all award types except COUNTDOWN_FREE_SPIN, for which it is omitted or set to null.
+
+state
+required
+string
+Enum: "AWARDED" "CLAIMED" "IN_PLAY" "CONSUMED" "REVERTED" "UNCLAIMED" "EXPIRED" "DECLINED" "REVOKED"
+The current state of the bonus.
+
+claimByStrategy
+required
+string
+Enum: "RELATIVE_TO_AWARD" "CUSTOM"
+The strategy for determining the deadline by which the bonuses must be claimed.
+
+claimByMinutes	
+integer <int64> [ 0 .. 1440000 ]
+The number of minutes the bonuses are available to be claimed after being awarded. Will be set when the claimByStrategy is RELATIVE_TO_AWARD.
+
+claimByDateTime
+required
+string <date-time>
+The deadline by which the bonus must be claimed. (UTC time zone)
+
+expirationStrategy
+required
+string
+Enum: "RELATIVE_TO_CLAIM" "CUSTOM"
+The strategy for determining when the bonuses will expire.
+
+expirationMinutes	
+integer <int64> ( 0 .. 1440000 ]
+The number of minutes the bonus is valid for after being claimed. Will be set when the expirationStrategy is RELATIVE_TO_CLAIM.
+
+expirationDateTime	
+string <date-time>
+The deadline by which the bonus, once claimed, must be used. (UTC time zone)
+
+games
+required
+Array of integers <int32> [ items <int32 > ]
+The unique identifiers of the games eligible for the bonuses.
+
+inPlayGame	
+integer <int32>
+The unique identifier of the game in which the bonus is currently being played, if applicable.
+
+portals
+required
+Array of objects (Member)
+The portals where this bonus is available.
+
+currency
+required
+string
+The currency code for the bonuses, defined by the three-letter currency code as per ISO-4217.
+
+betValueStrategy
+required
+string
+Enum: "MINIMUM" "EXACT" "CLOSEST" "CLOSEST_LOWER" "CLOSEST_HIGHER"
+The strategy used for determining the bet value.
+
+betValue	
+number
+The value of the bonus. The parameter may be omitted if the Bet Value Strategy used is MINIMUM. For any other Bet Value Strategy, the parameter is required.
+
+400 Bad request due to validation errors.
+Response Schema: application/json
+message	
+string
+details	
+Array of objects (ErrorResponse.ErrorResponseDetails)
+errorCode	
+string
+401 Unauthorized access.
+Response Schema: application/json
+message	
+string
+details	
+Array of objects (ErrorResponse.ErrorResponseDetails)
+errorCode	
+string
+403 Insufficient permissions.
+Response Schema: application/json
+message	
+string
+details	
+Array of objects (ErrorResponse.ErrorResponseDetails)
+errorCode	
+string
+5xx Internal server error.
+
+get
+/bonuses
+
+Response samples
+200400401403
+
+Copy
+Expand allCollapse all
+[
+{
+"id": "641228496479505084",
+"groupId": "641228495296711302",
+"groupType": "MANUAL",
+"playerId": "Player A",
+"type": "FREE_SPIN",
+"awardedAmount": 5,
+"consumedAmount": 1,
+"remainingAmount": 4,
+"state": "IN_PLAY",
+"claimByDateTime": "2024-12-31T23:59:59Z",
+"expirationDateTime": "2024-12-31T23:59:59Z",
+"games": [],
+"inPlayGame": 530,
+"portals": [],
+"currency": "EUR",
+"betValueStrategy": "EXACT",
+"betValue": "0.15"
+}
+]
+Retrieve a Bonus
+Retrieve a specific bonus using its unique identifier.
+
+Authorizations:
+ApiKeyAuth
+path Parameters
+bonusId
+required
+string
+Unique identifier of the bonus.
+
+Responses
+200 Bonus retrieved successfully.
+Response Schema: application/json
+id
+required
+string
+The unique identifier of the bonus.
+
+groupId
+required
+string
+The unique identifier of the group this bonus is associated with. If the bonus is awarded manually, the groupID represents the 'bundleID' assigned to that specific set of bonuses; if the bonus is linked to a promotion, the groupID matches the 'promotionID'.
+
+sourceId	
+string
+The unique identifier of the associated source promotional tool that awarded the bonus (example Promotion ID or Tournament ID), if applicable.'.
+
+groupType
+required
+string
+Enum: "PROMOTION" "MANUAL"
+The type of the group this bonus belongs to.
+
+playerId
+required
+string
+The identifier of the player that received this bonus.
+
+type
+required
+string
+Enum: "FREE_SPIN" "FREE_BUY_BONUS" "LUCKY_SPIN" "GOLDEN_CHIP" "COUNTDOWN_FREE_SPIN"
+The type of the bonus awarded.
+
+typeConfiguration	
+object
+Any additional configuration details needed for the specified bonus type.
+
+freeBuyBonusConfiguration	
+object
+Configuration for "Free Buy Bonus" bonuses, defining the awarded feature. Constraint: The parameter is required for FREE_BUY_BONUS
+
+goldenChipConfiguration	
+object
+Configuration for "Golden Chip" bonuses, defining the betting restrictions. Constraint: The parameter is required for GOLDEN_CHIP.
+
+countdownFreeSpinConfiguration	
+object
+Configuration for "Countdown Free Spin" bonuses. Constraint: The parameter is required for COUNTDOWN_FREE_SPIN
+
+awardedAmount	
+integer <int64>
+The total amount awarded. Constraint: The parameter is provided for all award types except COUNTDOWN_FREE_SPIN, for which it is omitted or set to null.
+
+consumedAmount
+required
+integer <int64>
+The amount that has already been consumed.
+
+revertedAmount
+required
+integer <int64>
+The amount that has been reverted.
+
+remainingAmount	
+integer <int64>
+The remaining amount available to be consumed. Constraint: The parameter is provided for all award types except COUNTDOWN_FREE_SPIN, for which it is omitted or set to null.
+
+state
+required
+string
+Enum: "AWARDED" "CLAIMED" "IN_PLAY" "CONSUMED" "REVERTED" "UNCLAIMED" "EXPIRED" "DECLINED" "REVOKED"
+The current state of the bonus.
+
+claimByStrategy
+required
+string
+Enum: "RELATIVE_TO_AWARD" "CUSTOM"
+The strategy for determining the deadline by which the bonuses must be claimed.
+
+claimByMinutes	
+integer <int64> [ 0 .. 1440000 ]
+The number of minutes the bonuses are available to be claimed after being awarded. Will be set when the claimByStrategy is RELATIVE_TO_AWARD.
+
+claimByDateTime
+required
+string <date-time>
+The deadline by which the bonus must be claimed. (UTC time zone)
+
+expirationStrategy
+required
+string
+Enum: "RELATIVE_TO_CLAIM" "CUSTOM"
+The strategy for determining when the bonuses will expire.
+
+expirationMinutes	
+integer <int64> ( 0 .. 1440000 ]
+The number of minutes the bonus is valid for after being claimed. Will be set when the expirationStrategy is RELATIVE_TO_CLAIM.
+
+expirationDateTime	
+string <date-time>
+The deadline by which the bonus, once claimed, must be used. (UTC time zone)
+
+games
+required
+Array of integers <int32> [ items <int32 > ]
+The unique identifiers of the games eligible for the bonuses.
+
+inPlayGame	
+integer <int32>
+The unique identifier of the game in which the bonus is currently being played, if applicable.
+
+portals
+required
+Array of objects (Member)
+The portals where this bonus is available.
+
+currency
+required
+string
+The currency code for the bonuses, defined by the three-letter currency code as per ISO-4217.
+
+betValueStrategy
+required
+string
+Enum: "MINIMUM" "EXACT" "CLOSEST" "CLOSEST_LOWER" "CLOSEST_HIGHER"
+The strategy used for determining the bet value.
+
+betValue	
+number
+The value of the bonus. The parameter may be omitted if the Bet Value Strategy used is MINIMUM. For any other Bet Value Strategy, the parameter is required.
+
+401 Unauthorized access.
+Response Schema: application/json
+message	
+string
+details	
+Array of objects (ErrorResponse.ErrorResponseDetails)
+errorCode	
+string
+403 Insufficient permissions.
+Response Schema: application/json
+message	
+string
+details	
+Array of objects (ErrorResponse.ErrorResponseDetails)
+errorCode	
+string
+404 Bonus not found.
+Response Schema: application/json
+message	
+string
+details	
+Array of objects (ErrorResponse.ErrorResponseDetails)
+errorCode	
+string
+5xx Internal server error.
+
+get
+/bonuses/{bonusId}
+
+Response samples
+200401403404
+
+Copy
+Expand allCollapse all
+{
+"id": "641228496479505084",
+"groupId": "641228495296711302",
+"groupType": "MANUAL",
+"playerId": "Player A",
+"type": "FREE_SPIN",
+"awardedAmount": 5,
+"consumedAmount": 1,
+"remainingAmount": 4,
+"state": "IN_PLAY",
+"claimByDateTime": "2024-12-31T23:59:59Z",
+"expirationDateTime": "2024-12-31T23:59:59Z",
+"games": [
+529,
+530
+],
+"inPlayGame": 530,
+"portals": [
+{},
+{}
+],
+"currency": "EUR",
+"betValueStrategy": "EXACT",
+"betValue": "0.15"
+}
+Revert an amount from a given Bonus
+Revert an amount from a given Bonus.
+
+Authorizations:
+ApiKeyAuth
+path Parameters
+bonusId
+required
+string
+Unique identifier of the Bonus.
+
+Request Body schema: application/json
+required
+The settings needed for reverting an amount from a Bonus.
+
+id
+required
+string <uuid>
+The idempotency key of the request. Must be a UUID represented by a standard 36-char string.
+
+amount	
+integer <int64> > 0
+The amount being reverted from the bonus, defaults to the remaining amount if not provided. Constraints: The parameter is required for all award types except COUNTDOWN_FREE_SPIN, for which it may be omitted or set to null.
+
+reason	
+string [ 1 .. 128 ] characters
+The optional reason for reverting the bonus.
+
+Responses
+200 Bonus amount reverted successfully.
+Response Schema: application/json
+id
+required
+string
+The unique identifier of the bonus.
+
+groupId
+required
+string
+The unique identifier of the group this bonus is associated with. If the bonus is awarded manually, the groupID represents the 'bundleID' assigned to that specific set of bonuses; if the bonus is linked to a promotion, the groupID matches the 'promotionID'.
+
+sourceId	
+string
+The unique identifier of the associated source promotional tool that awarded the bonus (example Promotion ID or Tournament ID), if applicable.'.
+
+groupType
+required
+string
+Enum: "PROMOTION" "MANUAL"
+The type of the group this bonus belongs to.
+
+playerId
+required
+string
+The identifier of the player that received this bonus.
+
+type
+required
+string
+Enum: "FREE_SPIN" "FREE_BUY_BONUS" "LUCKY_SPIN" "GOLDEN_CHIP" "COUNTDOWN_FREE_SPIN"
+The type of the bonus awarded.
+
+typeConfiguration	
+object
+Any additional configuration details needed for the specified bonus type.
+
+awardedAmount	
+integer <int64>
+The total amount awarded. Constraint: The parameter is provided for all award types except COUNTDOWN_FREE_SPIN, for which it is omitted or set to null.
+
+consumedAmount
+required
+integer <int64>
+The amount that has already been consumed.
+
+revertedAmount
+required
+integer <int64>
+The amount that has been reverted.
+
+remainingAmount	
+integer <int64>
+The remaining amount available to be consumed. Constraint: The parameter is provided for all award types except COUNTDOWN_FREE_SPIN, for which it is omitted or set to null.
+
+state
+required
+string
+Enum: "AWARDED" "CLAIMED" "IN_PLAY" "CONSUMED" "REVERTED" "UNCLAIMED" "EXPIRED" "DECLINED" "REVOKED"
+The current state of the bonus.
+
+claimByStrategy
+required
+string
+Enum: "RELATIVE_TO_AWARD" "CUSTOM"
+The strategy for determining the deadline by which the bonuses must be claimed.
+
+claimByMinutes	
+integer <int64> [ 0 .. 1440000 ]
+The number of minutes the bonuses are available to be claimed after being awarded. Will be set when the claimByStrategy is RELATIVE_TO_AWARD.
+
+claimByDateTime
+required
+string <date-time>
+The deadline by which the bonus must be claimed. (UTC time zone)
+
+expirationStrategy
+required
+string
+Enum: "RELATIVE_TO_CLAIM" "CUSTOM"
+The strategy for determining when the bonuses will expire.
+
+expirationMinutes	
+integer <int64> ( 0 .. 1440000 ]
+The number of minutes the bonus is valid for after being claimed. Will be set when the expirationStrategy is RELATIVE_TO_CLAIM.
+
+expirationDateTime	
+string <date-time>
+The deadline by which the bonus, once claimed, must be used. (UTC time zone)
+
+games
+required
+Array of integers <int32> [ items <int32 > ]
+The unique identifiers of the games eligible for the bonuses.
+
+inPlayGame	
+integer <int32>
+The unique identifier of the game in which the bonus is currently being played, if applicable.
+
+portals
+required
+Array of objects (Member)
+The portals where this bonus is available.
+
+currency
+required
+string
+The currency code for the bonuses, defined by the three-letter currency code as per ISO-4217.
+
+betValueStrategy
+required
+string
+Enum: "MINIMUM" "EXACT" "CLOSEST" "CLOSEST_LOWER" "CLOSEST_HIGHER"
+The strategy used for determining the bet value.
+
+betValue	
+number
+The value of the bonus. The parameter may be omitted if the Bet Value Strategy used is MINIMUM. For any other Bet Value Strategy, the parameter is required.
+
+400 Bad request due to validation errors.
+Response Schema: application/json
+message	
+string
+details	
+Array of objects (ErrorResponse.ErrorResponseDetails)
+errorCode	
+string
+401 Unauthorized access.
+Response Schema: application/json
+message	
+string
+details	
+Array of objects (ErrorResponse.ErrorResponseDetails)
+errorCode	
+string
+403 Insufficient permissions.
+Response Schema: application/json
+message	
+string
+details	
+Array of objects (ErrorResponse.ErrorResponseDetails)
+errorCode	
+string
+404 Bonus not found.
+Response Schema: application/json
+message	
+string
+details	
+Array of objects (ErrorResponse.ErrorResponseDetails)
+errorCode	
+string
+409 Conflict occurred because the bonus is in an invalid state.
+Response Schema: application/json
+message	
+string
+details	
+Array of objects (ErrorResponse.ErrorResponseDetails)
+errorCode	
+string
+5xx Internal server error.
+
+post
+/bonuses/{bonusId}/revert
+
+Request samples
+Payload
+
+Copy
+{
+"id": "11560041-76b0-4d81-8f0e-d34b1bd77175",
+"amount": 5,
+"reason": "Revert Reason"
+}
+Response samples
+200400401403404409
+
+Copy
+Expand allCollapse all
+{
+"id": "641228496479505084",
+"groupId": "641228495296711302",
+"groupType": "MANUAL",
+"playerId": "Player A",
+"type": "FREE_SPIN",
+"awardedAmount": 5,
+"consumedAmount": 1,
+"remainingAmount": 4,
+"state": "IN_PLAY",
+"claimByDateTime": "2024-12-31T23:59:59Z",
+"expirationDateTime": "2024-12-31T23:59:59Z",
+"games": [
+529,
+530
+],
+"inPlayGame": 530,
+"portals": [
+{},
+{}
+],
+"currency": "EUR",
+"betValueStrategy": "EXACT",
+"betValue": "0.15"
+}
+Retrieves all the reverts of a Bonus.
+Retrieves all the reverts of a Bonus.
+
+Authorizations:
+ApiKeyAuth
+path Parameters
+bonusId
+required
+string
+Unique identifier of the Bonus.
+
+Responses
+200 Reverts for a bonus retrieved successfully.
+Response Schema: application/json
+Array 
+bonusId
+required
+string
+The unique identifier of the reverted bonus.
+
+amount
+required
+integer <int64>
+The amount reverted from the bonus.
+
+reason	
+string
+Reason for the reverted bonus.
+
+creationTimestamp
+required
+string <date-time>
+Timestamp when the bonus was reverted. (UTC time zone)
+
+401 Unauthorized access.
+Response Schema: application/json
+message	
+string
+details	
+Array of objects (ErrorResponse.ErrorResponseDetails)
+errorCode	
+string
+403 Insufficient permissions.
+Response Schema: application/json
+message	
+string
+details	
+Array of objects (ErrorResponse.ErrorResponseDetails)
+errorCode	
+string
+404 Bonus not found.
+Response Schema: application/json
+message	
+string
+details	
+Array of objects (ErrorResponse.ErrorResponseDetails)
+errorCode	
+string
+5xx Internal server error.
+
+get
+/bonuses/{bonusId}/reverted
+Amusnet MGS URL
+
+https://{amusnet-mgs-domain}/bonus-platform/operator/v1/bonuses/{bonusId}/reverted
+Response samples
+200401403404
+
+Copy
+Expand allCollapse all
+[
+{
+"bonusId": "641228496479505084",
+"amount": 5,
+"reason": "Revert Reason",
+"creationTimestamp": "2024-01-01T00:00:00"
+}
+]
+Create Promotion
+This method is used whenever the Casino Operator would like to create a Promotion.
+
+Authorizations:
+ApiKeyAuth
+Request Body schema: application/json
+required
+The settings needed for creating a new promotion.
+
+id
+required
+string <uuid>
+The idempotency key of the request. Must be a UUID represented by a standard 36-char string.
+
+name
+required
+string [ 1 .. 128 ] characters
+The name of the promotion.
+
+description	
+string <= 512 characters
+An optional description of the promotion.
+
+currency
+required
+string = 3 characters
+The main currency code for the promotion, defined by the three-letter currency code as per ISO-4217.
+
+additionalCurrencies
+required
+Array of strings <= 200 items [ items = 3 characters ]
+Additional currencies supported by the promotion, defined by the three-letter currency code as per ISO-4217.
+
+triggerType
+required
+string
+Enum: "NONE" "START_DATE" "CHANCE_PER_STAKE"
+The method by which bonuses are awarded in the promotion.
+
+triggerConfiguration	
+object
+Any additional configuration details needed for the specified trigger type.
+
+chancePerStakeConfigurations
+required
+Array of objects (ChancePerStakeConfiguration) [ 1 .. 50 ] items
+Configurations for "Chance per Stake" promotions, defining the probability of winning a bonus for a particular bet range. Constraint: The parameter is required for CHANCE_PER_STAKE.
+
+publishDateTime	
+string <date-time>
+The publishing date and time of the promotion.. (UTC time zone)
+
+startDateTime	
+string <date-time>
+The start date and time of the promotion. (UTC time zone)
+
+endDateTime	
+string <date-time>
+The end date and time of the promotion. (UTC time zone)
+
+displayUntil	
+string <date-time>
+The display until date and time after the end date of the promotion. (UTC time zone)
+
+livePeriods	
+Array of objects (PromotionLivePeriod) [ 1 .. 100 ] items
+Defines a list of time windows during which the promotion is live.
+
+Array ([ 1 .. 100 ] items)
+startDateTime
+required
+string <date-time>
+The start date and time of the live period.
+
+endDateTime
+required
+string <date-time>
+The end date and time of the live period.
+
+skinPlayers
+required
+Array of objects (CreateSkinPlayers) [ 1 .. 50 ] items
+Defines player eligibility for the promotion segregated by skin.
+
+Array ([ 1 .. 50 ] items)
+skinName
+required
+string [ 1 .. 128 ] characters
+The name of the skin to which the player segmentation applies.
+
+playersConfiguration
+required
+string
+Enum: "ALL_PLAYERS" "INCLUDED" "EXCLUDED"
+The configuration type indicating player eligibility criteria for this skin.
+
+players	
+Array of objects (PromotionPlayer) [ 1 .. 1000000 ] items
+The players explicitly configured for inclusion or exclusion based on the segmentation type.
+
+games
+required
+Array of integers <int32> [ 1 .. 1000 ] items [ items <int32 > > 0 ]
+The unique identifiers of the games eligible for the bonuses of this promotion.
+
+includeBonusMoney	
+boolean
+Indicates whether bonus money transfers are eligible to be processed by the promotion. If the parameter is not provided, it automatically defaults to true.
+
+bonusType
+required
+string
+Enum: "FREE_SPIN" "FREE_BUY_BONUS" "LUCKY_SPIN" "GOLDEN_CHIP" "COUNTDOWN_FREE_SPIN"
+The type of the bonuses awarded from this promotion.
+
+bonusTypeConfiguration	
+object
+Any additional configuration details needed for the specified bonus type.
+
+freeBuyBonusConfiguration	
+object
+Configuration for "Free Buy Bonus" bonuses, defining the awarded feature. Constraint: The parameter is required for FREE_BUY_BONUS
+
+goldenChipConfiguration	
+object
+Configuration for "Golden Chip" bonuses, defining the betting restrictions. Constraint: The parameter is required for GOLDEN_CHIP.
+
+countdownFreeSpinConfiguration	
+object
+Configuration for "Countdown Free Spin" bonuses. Constraint: The parameter is required for COUNTDOWN_FREE_SPIN
+
+bonusClaimByStrategy	
+string
+Enum: "RELATIVE_TO_AWARD" "CUSTOM"
+The strategy for determining the deadline by which the bonuses awarded from this promotion must be claimed, if applicable.
+
+bonusClaimByMinutes	
+integer <int64> [ 0 .. 1440000 ]
+The number of minutes the bonuses awarded from this promotion are available to be claimed after being awarded. Required if bonusClaimByStrategy is RELATIVE_TO_AWARD.
+
+bonusClaimByDateTime	
+any <date-time>
+The deadline by which the bonuses awarded from this promotion must be claimed. Required if bonusClaimByStrategy is CUSTOM.
+
+bonusExpirationStrategy	
+string
+Enum: "RELATIVE_TO_CLAIM" "CUSTOM"
+The strategy for determining when bonuses awarded from this promotion will expire.
+
+bonusExpirationMinutes	
+integer <int64> ( 0 .. 1440000 ]
+The number of minutes a bonus awarded from this promotion will be valid for after being claimed. Required if bonusExpirationStrategy is RELATIVE_TO_CLAIM.
+
+bonusExpirationDateTime	
+string <date-time>
+The exact date when the bonuses awarded from this promotion will expire. Required if bonusExpirationStrategy is CUSTOM.
+
+bonusSets
+required
+Array of objects (CreateBonusSet) [ 1 .. 5000 ] items
+Defines distinct templates that specify the characteristics and limits of the bonuses awarded from this configuration.
+
+Array ([ 1 .. 5000 ] items)
+id
+required
+string <uuid>
+The unique identifier for this bonus set. Must be a UUID represented by a standard 36-char string.
+
+budget	
+integer <int64> > 0
+The total budget for the bonus set, defining the limit on the total number of bonuses that can be awarded.
+
+budgetUnit	
+string
+Enum: "BONUS_SETS" "BONUSES"
+The unit of the budget, indicating whether it applies to individual bonuses or sets of bonuses.
+
+currencies
+required
+Array of objects (BonusSetCurrency) [ 1 .. 200 ] items
+Defines the bonus set configurations for different currencies.
+
+portalNames
+required
+Array of strings [ 1 .. 50 ] items [ items [ 1 .. 128 ] characters ]
+The names of the portals participating in the promotion.
+
+Responses
+200 Promotion created successfully.
+Response Schema: application/json
+id
+required
+string
+The unique identifier of the promotion.
+
+name
+required
+string
+The name of the promotion.
+
+description	
+string
+An optional description of the promotion.
+
+currency
+required
+string
+The main currency code for the promotion, defined by the three-letter currency code as per ISO-4217.
+
+additionalCurrencies
+required
+Array of strings
+Additional currencies supported by the promotion, defined by the three-letter currency code as per ISO-4217.
+
+triggerType
+required
+string
+Enum: "NONE" "START_DATE" "CHANCE_PER_STAKE"
+The method by which bonuses are awarded in the promotion.
+
+triggerConfiguration	
+object
+Any additional configuration details needed for the specified trigger type.
+
+state
+required
+string
+Enum: "CREATED" "LIVE" "CANCELLED" "EXHAUSTED" "PAUSED" "FINISHED" "COMPLETED"
+The current state of the promotion.
+
+publishDateTime	
+string <date-time>
+The publishing date and time of the promotion. (UTC time zone)
+
+startDateTime
+required
+string <date-time>
+The start date and time of the promotion. (UTC time zone)
+
+endDateTime
+required
+string <date-time>
+The end date and time of the promotion. (UTC time zone)
+
+displayUntil	
+string <date-time>
+The display until date and time after the end date of the promotion. (UTC time zone)
+
+cancellationReason	
+string
+Reason for the promotion's cancellation, if applicable.
+
+games
+required
+Array of integers <int32> [ items <int32 > ]
+The unique identifiers of the games eligible for the bonuses of this promotion.
+
+includeBonusMoney	
+boolean
+Indicates whether bonus money transfers are eligible to be processed by the promotion. If the parameter is not provided, it automatically defaults to true.
+
+bonusType
+required
+string
+Enum: "FREE_SPIN" "FREE_BUY_BONUS" "LUCKY_SPIN" "GOLDEN_CHIP" "COUNTDOWN_FREE_SPIN"
+The type of the bonuses awarded from promotion.
+
+bonusTypeConfiguration	
+object
+Any additional configuration details needed for the specified bonus type.
+
+bonusClaimByStrategy	
+string
+Enum: "RELATIVE_TO_AWARD" "CUSTOM"
+The strategy for determining the deadline by which the bonuses awarded from this promotion must be claimed, if applicable.
+
+bonusClaimByMinutes	
+integer <int64> [ 0 .. 1440000 ]
+The number of minutes the bonuses awarded from this promotion are available to be claimed after being awarded. Will be set when the bonusClaimByStrategy is RELATIVE_TO_AWARD.
+
+bonusClaimByDateTime	
+string <date-time>
+The deadline by which the bonuses awarded from this promotion must be claimed. Will be set when the bonusClaimByStrategy is CUSTOM.
+
+bonusExpirationStrategy	
+string
+Enum: "RELATIVE_TO_CLAIM" "CUSTOM"
+The strategy for determining when bonuses awarded from this promotion will expire.
+
+bonusExpirationMinutes	
+integer <int64> ( 0 .. 1440000 ]
+The number of minutes a bonus awarded from this promotion will be valid for after being claimed. Will be set when the bonusExpirationStrategy is RELATIVE_TO_CLAIM.
+
+bonusExpirationDateTime	
+string <date-time>
+The exact date when the bonuses awarded from this promotion will expire. Will be set when the bonusExpirationStrategy is CUSTOM.
+
+portals
+required
+Array of objects (Member)
+The portals participating in the promotion.
+
+400 Bad request due to validation errors.
+Response Schema: application/json
+message	
+string
+details	
+Array of objects (ErrorResponse.ErrorResponseDetails)
+errorCode	
+string
+401 Unauthorized access.
+Response Schema: application/json
+message	
+string
+details	
+Array of objects (ErrorResponse.ErrorResponseDetails)
+errorCode	
+string
+403 Insufficient permissions.
+Response Schema: application/json
+message	
+string
+details	
+Array of objects (ErrorResponse.ErrorResponseDetails)
+errorCode	
+string
+5xx Internal server error.
+
+post
+/promotions
+
+Request samples
+Payload
+
+Copy
+Expand allCollapse all
+{
+"id": "07e8f184-0cfe-4770-9ea7-8d3ce6066b99",
+"name": "Promotion Name",
+"description": "Promotion Description",
+"currency": "EUR",
+"additionalCurrencies": [
+"USD"
+],
+"triggerType": "CHANCE_PER_STAKE",
+"triggerConfiguration": {
+"chancePerStakeConfigurations": []
+},
+"startDateTime": "2024-01-01T00:00:00Z",
+"endDateTime": "2024-12-31T23:59:59Z",
+"skinPlayers": [
+{}
+],
+"games": [
+529,
+530
+],
+"bonusType": "LUCKY_SPIN",
+"bonusExpirationMinutes": 43200,
+"bonusSets": [
+{},
+{}
+],
+"portalNames": [
+"Portal Name"
+]
+}
+Response samples
+200400401403
+
+Copy
+Expand allCollapse all
+{
+"id": "641652389480553803",
+"name": "Promotion Name",
+"description": "Promotion Description",
+"currency": "EUR",
+"additionalCurrencies": [
+"USD"
+],
+"triggerType": "CHANCE_PER_STAKE",
+"triggerConfiguration": {
+"chancePerStakeConfigurations": []
+},
+"state": "CREATED",
+"startDateTime": "2024-01-01T00:00:00Z",
+"endDateTime": "2024-12-31T23:59:59Z",
+"games": [
+529,
+530
+],
+"bonusType": "LUCKY_SPIN",
+"bonusExpirationMinutes": 43200,
+"portals": [
+{},
+{}
+]
+}
+Retrieve Promotions
+Retrieve a list of promotions matching the provided filter criteria.
+
+Authorizations:
+ApiKeyAuth
+query Parameters
+id	
+string
+Filter promotions by their unique identifier.
+
+name	
+string
+Filter promotions by their name.
+
+supportedCurrencies	
+Array of strings
+Filter promotions by supported currencies.
+
+triggerTypes	
+Array of strings (TriggerType)
+Items Enum: "NONE" "START_DATE" "CHANCE_PER_STAKE"
+Filter promotions by their trigger types.
+
+states	
+Array of strings (PromotionState)
+Items Enum: "CREATED" "LIVE" "CANCELLED" "EXHAUSTED" "PAUSED" "FINISHED" "COMPLETED"
+Filter promotions by their states.
+
+liveFrom	
+string <date-time>
+Filter promotions by their live period start date. (UTC time zone)
+
+liveTo	
+string <date-time>
+Filter promotions by their live period end date. (UTC time zone)
+
+games	
+Array of integers <int32> [ items <int32 > ]
+Filter promotions by the unique identifiers of eligible games.
+
+bonusTypes	
+Array of strings (BonusType)
+Items Enum: "FREE_SPIN" "FREE_BUY_BONUS" "LUCKY_SPIN" "GOLDEN_CHIP" "COUNTDOWN_FREE_SPIN"
+Filter promotions by their bonus types.
+
+portalUids	
+Array of integers <int64> [ items <int64 > ]
+Filter promotions by associated portal unique identifiers.
+
+createdFrom	
+string <date-time>
+Filter promotions by their creation date start range. (UTC time zone)
+
+createdTo	
+string <date-time>
+Filter promotions by their creation date end range. (UTC time zone)
+
+offset	
+integer <int64> >= 0
+Set the pagination offset, specifying the number of records to skip.
+
+limit	
+integer <int64> > 0
+Set the pagination limit, specifying the maximum number of records to return.
+
+Responses
+200 Promotions retrieved successfully.
+Response Schema: application/json
+Array 
+id
+required
+string
+The unique identifier of the promotion.
+
+name
+required
+string
+The name of the promotion.
+
+description	
+string
+An optional description of the promotion.
+
+currency
+required
+string
+The main currency code for the promotion, defined by the three-letter currency code as per ISO-4217.
+
+additionalCurrencies
+required
+Array of strings
+Additional currencies supported by the promotion, defined by the three-letter currency code as per ISO-4217.
+
+triggerType
+required
+string
+Enum: "NONE" "START_DATE" "CHANCE_PER_STAKE"
+The method by which bonuses are awarded in the promotion.
+
+triggerConfiguration	
+object
+Any additional configuration details needed for the specified trigger type.
+
+state
+required
+string
+Enum: "CREATED" "LIVE" "CANCELLED" "EXHAUSTED" "PAUSED" "FINISHED" "COMPLETED"
+The current state of the promotion.
+
+publishDateTime	
+string <date-time>
+The publishing date and time of the promotion. (UTC time zone)
+
+startDateTime
+required
+string <date-time>
+The start date and time of the promotion. (UTC time zone)
+
+endDateTime
+required
+string <date-time>
+The end date and time of the promotion. (UTC time zone)
+
+displayUntil	
+string <date-time>
+The display until date and time after the end date of the promotion. (UTC time zone)
+
+cancellationReason	
+string
+Reason for the promotion's cancellation, if applicable.
+
+games
+required
+Array of integers <int32> [ items <int32 > ]
+The unique identifiers of the games eligible for the bonuses of this promotion.
+
+includeBonusMoney	
+boolean
+Indicates whether bonus money transfers are eligible to be processed by the promotion. If the parameter is not provided, it automatically defaults to true.
+
+bonusType
+required
+string
+Enum: "FREE_SPIN" "FREE_BUY_BONUS" "LUCKY_SPIN" "GOLDEN_CHIP" "COUNTDOWN_FREE_SPIN"
+The type of the bonuses awarded from promotion.
+
+bonusTypeConfiguration	
+object
+Any additional configuration details needed for the specified bonus type.
+
+bonusClaimByStrategy	
+string
+Enum: "RELATIVE_TO_AWARD" "CUSTOM"
+The strategy for determining the deadline by which the bonuses awarded from this promotion must be claimed, if applicable.
+
+bonusClaimByMinutes	
+integer <int64> [ 0 .. 1440000 ]
+The number of minutes the bonuses awarded from this promotion are available to be claimed after being awarded. Will be set when the bonusClaimByStrategy is RELATIVE_TO_AWARD.
+
+bonusClaimByDateTime	
+string <date-time>
+The deadline by which the bonuses awarded from this promotion must be claimed. Will be set when the bonusClaimByStrategy is CUSTOM.
+
+bonusExpirationStrategy	
+string
+Enum: "RELATIVE_TO_CLAIM" "CUSTOM"
+The strategy for determining when bonuses awarded from this promotion will expire.
+
+bonusExpirationMinutes	
+integer <int64> ( 0 .. 1440000 ]
+The number of minutes a bonus awarded from this promotion will be valid for after being claimed. Will be set when the bonusExpirationStrategy is RELATIVE_TO_CLAIM.
+
+bonusExpirationDateTime	
+string <date-time>
+The exact date when the bonuses awarded from this promotion will expire. Will be set when the bonusExpirationStrategy is CUSTOM.
+
+portals
+required
+Array of objects (Member)
+The portals participating in the promotion.
+
+400 Bad request due to validation errors.
+Response Schema: application/json
+message	
+string
+details	
+Array of objects (ErrorResponse.ErrorResponseDetails)
+errorCode	
+string
+401 Unauthorized access.
+Response Schema: application/json
+message	
+string
+details	
+Array of objects (ErrorResponse.ErrorResponseDetails)
+errorCode	
+string
+403 Insufficient permissions.
+Response Schema: application/json
+message	
+string
+details	
+Array of objects (ErrorResponse.ErrorResponseDetails)
+errorCode	
+string
+5xx Internal server error.
+
+get
+/promotions
+
+Response samples
+200400401403
+
+Copy
+Expand allCollapse all
+[
+{
+"id": "641652389480553803",
+"name": "Promotion Name",
+"description": "Promotion Description",
+"currency": "EUR",
+"additionalCurrencies": [],
+"triggerType": "CHANCE_PER_STAKE",
+"triggerConfiguration": {},
+"state": "CREATED",
+"startDateTime": "2024-01-01T00:00:00Z",
+"endDateTime": "2024-12-31T23:59:59Z",
+"games": [],
+"bonusType": "LUCKY_SPIN",
+"bonusExpirationMinutes": 43200,
+"portals": []
+}
+]
+Update Promotion
+This method is used whenever the Casino Operator would like to update a Promotion.
+
+Authorizations:
+ApiKeyAuth
+path Parameters
+promotionId
+required
+string
+Unique identifier of the promotion.
+
+Request Body schema: application/json
+required
+The settings that can be updated from a promotion.
+
+name
+required
+string [ 1 .. 128 ] characters
+The name of the promotion.
+
+description	
+string <= 512 characters
+An optional description of the promotion.
+
+currency
+required
+string = 3 characters
+The main currency code for the promotion, defined by the three-letter currency code as per ISO-4217.
+
+additionalCurrencies
+required
+Array of strings <= 200 items [ items = 3 characters ]
+Additional currencies supported by the promotion, defined by the three-letter currency code as per ISO-4217.
+
+triggerConfiguration	
+object
+Any additional configuration details needed for the specified trigger type.
+
+chancePerStakeConfigurations
+required
+Array of objects (ChancePerStakeConfiguration) [ 1 .. 50 ] items
+Configurations for "Chance per Stake" promotions, defining the probability of winning a bonus for a particular bet range. Constraint: The parameter is required for CHANCE_PER_STAKE.
+
+publishDateTime	
+string <date-time>
+The publishing date and time of the promotion. (UTC time zone)
+
+startDateTime
+required
+string <date-time>
+The start date and time of the promotion. (UTC time zone)
+
+endDateTime
+required
+string <date-time>
+The end date and time of the promotion. (UTC time zone)
+
+displayUntil	
+string <date-time>
+The display until date and time after the end date of the promotion. (UTC time zone)
+
+livePeriods	
+Array of objects (PromotionLivePeriod) [ 1 .. 100 ] items
+Defines a list of time windows during which the promotion is live.
+
+Array ([ 1 .. 100 ] items)
+startDateTime
+required
+string <date-time>
+The start date and time of the live period.
+
+endDateTime
+required
+string <date-time>
+The end date and time of the live period.
+
+skinPlayers
+required
+Array of objects (CreateSkinPlayers) [ 1 .. 50 ] items
+Defines player eligibility for the promotion segregated by skin.
+
+Array ([ 1 .. 50 ] items)
+skinName
+required
+string [ 1 .. 128 ] characters
+The name of the skin to which the player segmentation applies.
+
+playersConfiguration
+required
+string
+Enum: "ALL_PLAYERS" "INCLUDED" "EXCLUDED"
+The configuration type indicating player eligibility criteria for this skin.
+
+players	
+Array of objects (PromotionPlayer) [ 1 .. 1000000 ] items
+The players explicitly configured for inclusion or exclusion based on the segmentation type.
+
+games
+required
+Array of integers <int32> [ 1 .. 1000 ] items [ items <int32 > > 0 ]
+The unique identifiers of the games eligible for the bonuses of this promotion.
+
+includeBonusMoney	
+boolean
+Indicates whether bonus money transfers are eligible to be processed by the promotion. If the parameter is not provided, it automatically defaults to true.
+
+bonusTypeConfiguration	
+object
+Any additional configuration details needed for the specified bonus type.
+
+freeBuyBonusConfiguration	
+object
+Configuration for "Free Buy Bonus" bonuses, defining the awarded feature. Constraint: The parameter is required for FREE_BUY_BONUS
+
+goldenChipConfiguration	
+object
+Configuration for "Golden Chip" bonuses, defining the betting restrictions. Constraint: The parameter is required for GOLDEN_CHIP.
+
+countdownFreeSpinConfiguration	
+object
+Configuration for "Countdown Free Spin" bonuses. Constraint: The parameter is required for COUNTDOWN_FREE_SPIN
+
+bonusClaimByStrategy	
+string
+Enum: "RELATIVE_TO_AWARD" "CUSTOM"
+The strategy for determining the deadline by which the bonuses awarded from this promotion must be claimed, if applicable.
+
+bonusClaimByMinutes	
+integer <int64> [ 0 .. 1440000 ]
+The number of minutes the bonuses awarded from this promotion are available to be claimed after being awarded. Required if bonusClaimByStrategy is RELATIVE_TO_AWARD.
+
+bonusClaimByDateTime	
+any <date-time>
+The deadline by which the bonuses awarded from this promotion must be claimed. Required if bonusClaimByStrategy is CUSTOM.
+
+bonusExpirationStrategy	
+string
+Enum: "RELATIVE_TO_CLAIM" "CUSTOM"
+The strategy for determining when bonuses awarded from this promotion will expire.
+
+bonusExpirationMinutes	
+integer <int64> ( 0 .. 1440000 ]
+The number of minutes a bonus awarded from this promotion will be valid for after being claimed. Required if bonusExpirationStrategy is RELATIVE_TO_CLAIM.
+
+bonusExpirationDateTime	
+string <date-time>
+The exact date when the bonuses awarded from this promotion will expire. Required if bonusExpirationStrategy is CUSTOM.
+
+bonusSets
+required
+Array of objects (CreateBonusSet) [ 1 .. 5000 ] items
+Defines distinct templates that specify the characteristics and limits of the bonuses awarded from this configuration.
+
+Array ([ 1 .. 5000 ] items)
+id
+required
+string <uuid>
+The unique identifier for this bonus set. Must be a UUID represented by a standard 36-char string.
+
+budget	
+integer <int64> > 0
+The total budget for the bonus set, defining the limit on the total number of bonuses that can be awarded.
+
+budgetUnit	
+string
+Enum: "BONUS_SETS" "BONUSES"
+The unit of the budget, indicating whether it applies to individual bonuses or sets of bonuses.
+
+currencies
+required
+Array of objects (BonusSetCurrency) [ 1 .. 200 ] items
+Defines the bonus set configurations for different currencies.
+
+portalNames
+required
+Array of strings [ 1 .. 50 ] items [ items [ 1 .. 128 ] characters ]
+The names of the portals participating in the promotion.
+
+Responses
+200 Promotion updated successfully.
+Response Schema: application/json
+promotion
+required
+object
+The basic details of the promotion.
+
+bonusSets
+required
+Array of objects (BonusSet)
+The promotion's bonus sets.
+
+Array 
+id
+required
+string <uuid>
+Unique identifier of the bonus set. Must be a UUID represented by a standard 36-char string.
+
+budget	
+integer <int64>
+The total budget for the bonus set, defining the limit on the total number of bonuses that can be awarded.
+
+budgetUnit	
+string
+Enum: "BONUS_SETS" "BONUSES"
+The unit of the budget, indicating whether it applies to individual bonuses or sets of bonuses.
+
+awardedAmount
+required
+integer <int64>
+The total amount awarded from the budget.
+
+currencies
+required
+Array of objects (BonusSetCurrency)
+Defines the bonus set configurations for different currencies.
+
+skinPlayers
+required
+Array of objects (SkinPlayers)
+The promotion's player configuration segregated by skin.
+
+Array 
+skin
+required
+object
+The skin to which the player segmentation applies.
+
+playersConfiguration
+required
+string
+Enum: "ALL_PLAYERS" "INCLUDED" "EXCLUDED"
+The configuration type indicating player eligibility criteria for this skin.
+
+players	
+Array of objects (PromotionPlayer)
+The players explicitly configured for inclusion or exclusion based on the segmentation type.
+
+livePeriods	
+Array of objects (PromotionLivePeriod)
+The list of specific time windows during which this promotion is active, as returned by the system.
+
+400 Bad request due to validation errors.
+Response Schema: application/json
+message	
+string
+details	
+Array of objects (ErrorResponse.ErrorResponseDetails)
+errorCode	
+string
+401 Unauthorized access.
+Response Schema: application/json
+message	
+string
+details	
+Array of objects (ErrorResponse.ErrorResponseDetails)
+errorCode	
+string
+403 Insufficient permissions.
+Response Schema: application/json
+message	
+string
+details	
+Array of objects (ErrorResponse.ErrorResponseDetails)
+errorCode	
+string
+404 Promotion not found.
+Response Schema: application/json
+message	
+string
+details	
+Array of objects (ErrorResponse.ErrorResponseDetails)
+errorCode	
+string
+409 Conflict occurred because the promotion is in an invalid state.
+Response Schema: application/json
+message	
+string
+details	
+Array of objects (ErrorResponse.ErrorResponseDetails)
+errorCode	
+string
+5xx Internal server error.
+
+put
+/promotions/{promotionId}
+
+Request samples
+Payload
+
+Copy
+Expand allCollapse all
+{
+"name": "Promotion Name",
+"description": "Promotion Description",
+"currency": "EUR",
+"additionalCurrencies": [
+"USD"
+],
+"triggerConfiguration": {
+"chancePerStakeConfigurations": []
+},
+"startDateTime": "2024-01-01T00:00:00Z",
+"endDateTime": "2024-12-31T23:59:59Z",
+"skinPlayers": [
+{}
+],
+"games": [
+529,
+530
+],
+"bonusExpirationMinutes": 43200,
+"bonusSets": [
+{},
+{}
+],
+"portalNames": [
+"Portal Name"
+]
+}
+Response samples
+200400401403404409
+
+Copy
+Expand allCollapse all
+{
+"promotion": {
+"id": "641652389480553803",
+"name": "Promotion Name",
+"description": "Promotion Description",
+"currency": "EUR",
+"additionalCurrencies": [],
+"triggerType": "CHANCE_PER_STAKE",
+"triggerConfiguration": {},
+"state": "CREATED",
+"startDateTime": "2024-01-01T00:00:00Z",
+"endDateTime": "2024-12-31T23:59:59Z",
+"games": [],
+"bonusType": "LUCKY_SPIN",
+"bonusExpirationMinutes": 43200,
+"portals": []
+},
+"bonusSets": [
+{}
+],
+"skinPlayers": [
+{}
+],
+"livePeriods": [
+{}
+]
+}
+Award Bonus from Promotion
+This method is used whenever the Casino Operator would like to award Bonus from a Promotion.
+
+Authorizations:
+ApiKeyAuth
+path Parameters
+promotionId
+required
+string
+Unique identifier of the promotion.
+
+Request Body schema: application/json
+required
+The settings needed for awarding a bonus from a promotion.
+
+id
+required
+string <uuid>
+The idempotency key of the request. Must be a UUID represented by a standard 36-char string.
+
+amount
+required
+integer <int64> > 0
+The quantity of bonuses being awarded to the player. Constraints: The parameter is required for all award types except COUNTDOWN_FREE_SPIN, for which it may be omitted or set to null. The parameter must be set to 1 for FREE_BUY_BONUS.
+
+playerId
+required
+string [ 1 .. 64 ] characters
+The identifier of the player to be awarded this bonus.
+
+skinName
+required
+string [ 1 .. 128 ] characters
+The name of the player's skin.
+
+currency
+required
+string = 3 characters
+The currency code for the bonus, defined by the three-letter currency code as per ISO-4217.
+
+Responses
+200 Bonus awarded successfully.
+Response Schema: application/json
+id
+required
+string
+The unique identifier of the bonus.
+
+groupId
+required
+string
+The unique identifier of the group this bonus is associated with. If the bonus is awarded manually, the groupID represents the 'bundleID' assigned to that specific set of bonuses; if the bonus is linked to a promotion, the groupID matches the 'promotionID'.
+
+sourceId	
+string
+The unique identifier of the associated source promotional tool that awarded the bonus (example Promotion ID or Tournament ID), if applicable.'.
+
+groupType
+required
+string
+Enum: "PROMOTION" "MANUAL"
+The type of the group this bonus belongs to.
+
+playerId
+required
+string
+The identifier of the player that received this bonus.
+
+type
+required
+string
+Enum: "FREE_SPIN" "FREE_BUY_BONUS" "LUCKY_SPIN" "GOLDEN_CHIP" "COUNTDOWN_FREE_SPIN"
+The type of the bonus awarded.
+
+typeConfiguration	
+object
+Any additional configuration details needed for the specified bonus type.
+
+freeBuyBonusConfiguration	
+object
+Configuration for "Free Buy Bonus" bonuses, defining the awarded feature. Constraint: The parameter is required for FREE_BUY_BONUS
+
+goldenChipConfiguration	
+object
+Configuration for "Golden Chip" bonuses, defining the betting restrictions. Constraint: The parameter is required for GOLDEN_CHIP.
+
+countdownFreeSpinConfiguration	
+object
+Configuration for "Countdown Free Spin" bonuses. Constraint: The parameter is required for COUNTDOWN_FREE_SPIN
+
+awardedAmount	
+integer <int64>
+The total amount awarded. Constraint: The parameter is provided for all award types except COUNTDOWN_FREE_SPIN, for which it is omitted or set to null.
+
+consumedAmount
+required
+integer <int64>
+The amount that has already been consumed.
+
+revertedAmount
+required
+integer <int64>
+The amount that has been reverted.
+
+remainingAmount	
+integer <int64>
+The remaining amount available to be consumed. Constraint: The parameter is provided for all award types except COUNTDOWN_FREE_SPIN, for which it is omitted or set to null.
+
+state
+required
+string
+Enum: "AWARDED" "CLAIMED" "IN_PLAY" "CONSUMED" "REVERTED" "UNCLAIMED" "EXPIRED" "DECLINED" "REVOKED"
+The current state of the bonus.
+
+claimByStrategy
+required
+string
+Enum: "RELATIVE_TO_AWARD" "CUSTOM"
+The strategy for determining the deadline by which the bonuses must be claimed.
+
+claimByMinutes	
+integer <int64> [ 0 .. 1440000 ]
+The number of minutes the bonuses are available to be claimed after being awarded. Will be set when the claimByStrategy is RELATIVE_TO_AWARD.
+
+claimByDateTime
+required
+string <date-time>
+The deadline by which the bonus must be claimed. (UTC time zone)
+
+expirationStrategy
+required
+string
+Enum: "RELATIVE_TO_CLAIM" "CUSTOM"
+The strategy for determining when the bonuses will expire.
+
+expirationMinutes	
+integer <int64> ( 0 .. 1440000 ]
+The number of minutes the bonus is valid for after being claimed. Will be set when the expirationStrategy is RELATIVE_TO_CLAIM.
+
+expirationDateTime	
+string <date-time>
+The deadline by which the bonus, once claimed, must be used. (UTC time zone)
+
+games
+required
+Array of integers <int32> [ items <int32 > ]
+The unique identifiers of the games eligible for the bonuses.
+
+inPlayGame	
+integer <int32>
+The unique identifier of the game in which the bonus is currently being played, if applicable.
+
+portals
+required
+Array of objects (Member)
+The portals where this bonus is available.
+
+currency
+required
+string
+The currency code for the bonuses, defined by the three-letter currency code as per ISO-4217.
+
+betValueStrategy
+required
+string
+Enum: "MINIMUM" "EXACT" "CLOSEST" "CLOSEST_LOWER" "CLOSEST_HIGHER"
+The strategy used for determining the bet value.
+
+betValue	
+number
+The value of the bonus. The parameter may be omitted if the Bet Value Strategy used is MINIMUM. For any other Bet Value Strategy, the parameter is required.
+
+400 Bad request due to validation errors.
+Response Schema: application/json
+message	
+string
+details	
+Array of objects (ErrorResponse.ErrorResponseDetails)
+errorCode	
+string
+401 Unauthorized access.
+Response Schema: application/json
+message	
+string
+details	
+Array of objects (ErrorResponse.ErrorResponseDetails)
+errorCode	
+string
+403 Insufficient permissions.
+Response Schema: application/json
+message	
+string
+details	
+Array of objects (ErrorResponse.ErrorResponseDetails)
+errorCode	
+string
+404 Promotion not found.
+Response Schema: application/json
+message	
+string
+details	
+Array of objects (ErrorResponse.ErrorResponseDetails)
+errorCode	
+string
+409 Conflict occurred because the promotion is in an invalid state or of an invalid trigger type.
+Response Schema: application/json
+message	
+string
+details	
+Array of objects (ErrorResponse.ErrorResponseDetails)
+errorCode	
+string
+5xx Internal server error.
+
+post
+/promotions/{promotionId}
+
+Request samples
+Payload
+
+Copy
+{
+"id": "11560041-76b0-4d81-8f0e-d34b1bd77175",
+"amount": 5,
+"playerId": "Player A",
+"skinName": "Skin Name",
+"currency": "EUR"
+}
+Response samples
+200400401403404409
+
+Copy
+Expand allCollapse all
+{
+"id": "641228496479505084",
+"groupId": "641228495296711302",
+"groupType": "MANUAL",
+"playerId": "Player A",
+"type": "FREE_SPIN",
+"awardedAmount": 5,
+"consumedAmount": 1,
+"remainingAmount": 4,
+"state": "IN_PLAY",
+"claimByDateTime": "2024-12-31T23:59:59Z",
+"expirationDateTime": "2024-12-31T23:59:59Z",
+"games": [
+529,
+530
+],
+"inPlayGame": 530,
+"portals": [
+{},
+{}
+],
+"currency": "EUR",
+"betValueStrategy": "EXACT",
+"betValue": "0.15"
+}
+Retrieve single Promotion
+Retrieve a promotion using its unique identifier.
+
+Authorizations:
+ApiKeyAuth
+path Parameters
+promotionId
+required
+string
+Unique identifier of the promotion.
+
+Responses
+200 Promotion retrieved successfully.
+Response Schema: application/json
+id
+required
+string
+The unique identifier of the promotion.
+
+name
+required
+string
+The name of the promotion.
+
+description	
+string
+An optional description of the promotion.
+
+currency
+required
+string
+The main currency code for the promotion, defined by the three-letter currency code as per ISO-4217.
+
+additionalCurrencies
+required
+Array of strings
+Additional currencies supported by the promotion, defined by the three-letter currency code as per ISO-4217.
+
+triggerType
+required
+string
+Enum: "NONE" "START_DATE" "CHANCE_PER_STAKE"
+The method by which bonuses are awarded in the promotion.
+
+triggerConfiguration	
+object
+Any additional configuration details needed for the specified trigger type.
+
+chancePerStakeConfigurations
+required
+Array of objects (ChancePerStakeConfiguration) [ 1 .. 50 ] items
+Configurations for "Chance per Stake" promotions, defining the probability of winning a bonus for a particular bet range. Constraint: The parameter is required for CHANCE_PER_STAKE.
+
+state
+required
+string
+Enum: "CREATED" "LIVE" "CANCELLED" "EXHAUSTED" "PAUSED" "FINISHED" "COMPLETED"
+The current state of the promotion.
+
+publishDateTime	
+string <date-time>
+The publishing date and time of the promotion. (UTC time zone)
+
+startDateTime
+required
+string <date-time>
+The start date and time of the promotion. (UTC time zone)
+
+endDateTime
+required
+string <date-time>
+The end date and time of the promotion. (UTC time zone)
+
+displayUntil	
+string <date-time>
+The display until date and time after the end date of the promotion. (UTC time zone)
+
+cancellationReason	
+string
+Reason for the promotion's cancellation, if applicable.
+
+games
+required
+Array of integers <int32> [ items <int32 > ]
+The unique identifiers of the games eligible for the bonuses of this promotion.
+
+includeBonusMoney	
+boolean
+Indicates whether bonus money transfers are eligible to be processed by the promotion. If the parameter is not provided, it automatically defaults to true.
+
+bonusType
+required
+string
+Enum: "FREE_SPIN" "FREE_BUY_BONUS" "LUCKY_SPIN" "GOLDEN_CHIP" "COUNTDOWN_FREE_SPIN"
+The type of the bonuses awarded from promotion.
+
+bonusTypeConfiguration	
+object
+Any additional configuration details needed for the specified bonus type.
+
+freeBuyBonusConfiguration	
+object
+Configuration for "Free Buy Bonus" bonuses, defining the awarded feature. Constraint: The parameter is required for FREE_BUY_BONUS
+
+goldenChipConfiguration	
+object
+Configuration for "Golden Chip" bonuses, defining the betting restrictions. Constraint: The parameter is required for GOLDEN_CHIP.
+
+countdownFreeSpinConfiguration	
+object
+Configuration for "Countdown Free Spin" bonuses. Constraint: The parameter is required for COUNTDOWN_FREE_SPIN
+
+bonusClaimByStrategy	
+string
+Enum: "RELATIVE_TO_AWARD" "CUSTOM"
+The strategy for determining the deadline by which the bonuses awarded from this promotion must be claimed, if applicable.
+
+bonusClaimByMinutes	
+integer <int64> [ 0 .. 1440000 ]
+The number of minutes the bonuses awarded from this promotion are available to be claimed after being awarded. Will be set when the bonusClaimByStrategy is RELATIVE_TO_AWARD.
+
+bonusClaimByDateTime	
+string <date-time>
+The deadline by which the bonuses awarded from this promotion must be claimed. Will be set when the bonusClaimByStrategy is CUSTOM.
+
+bonusExpirationStrategy	
+string
+Enum: "RELATIVE_TO_CLAIM" "CUSTOM"
+The strategy for determining when bonuses awarded from this promotion will expire.
+
+bonusExpirationMinutes	
+integer <int64> ( 0 .. 1440000 ]
+The number of minutes a bonus awarded from this promotion will be valid for after being claimed. Will be set when the bonusExpirationStrategy is RELATIVE_TO_CLAIM.
+
+bonusExpirationDateTime	
+string <date-time>
+The exact date when the bonuses awarded from this promotion will expire. Will be set when the bonusExpirationStrategy is CUSTOM.
+
+portals
+required
+Array of objects (Member)
+The portals participating in the promotion.
+
+401 Unauthorized access.
+Response Schema: application/json
+message	
+string
+details	
+Array of objects (ErrorResponse.ErrorResponseDetails)
+errorCode	
+string
+403 Insufficient permissions.
+Response Schema: application/json
+message	
+string
+details	
+Array of objects (ErrorResponse.ErrorResponseDetails)
+errorCode	
+string
+404 Promotion not found.
+Response Schema: application/json
+message	
+string
+details	
+Array of objects (ErrorResponse.ErrorResponseDetails)
+errorCode	
+string
+5xx Internal server error.
+
+get
+/promotions/{promotionId}
+
+Response samples
+200401403404
+
+Copy
+Expand allCollapse all
+{
+"id": "641652389480553803",
+"name": "Promotion Name",
+"description": "Promotion Description",
+"currency": "EUR",
+"additionalCurrencies": [
+"USD"
+],
+"triggerType": "CHANCE_PER_STAKE",
+"triggerConfiguration": {
+"chancePerStakeConfigurations": []
+},
+"state": "CREATED",
+"startDateTime": "2024-01-01T00:00:00Z",
+"endDateTime": "2024-12-31T23:59:59Z",
+"games": [
+529,
+530
+],
+"bonusType": "LUCKY_SPIN",
+"bonusExpirationMinutes": 43200,
+"portals": [
+{},
+{}
+]
+}
+Delete a given Promotion.
+Authorizations:
+ApiKeyAuth
+path Parameters
+promotionId
+required
+string
+Unique identifier of the promotion.
+
+Request Body schema: application/json
+required
+The settings needed for deleting a promotion.
+
+reason
+required
+string [ 1 .. 128 ] characters
+The reason for deleting the promotion.
+
+Responses
+204 Promotion deleted successfully.
+400 Bad request due to validation errors.
+Response Schema: application/json
+message	
+string
+details	
+Array of objects (ErrorResponse.ErrorResponseDetails)
+errorCode	
+string
+401 Unauthorized access.
+Response Schema: application/json
+message	
+string
+details	
+Array of objects (ErrorResponse.ErrorResponseDetails)
+errorCode	
+string
+403 Insufficient permissions.
+Response Schema: application/json
+message	
+string
+details	
+Array of objects (ErrorResponse.ErrorResponseDetails)
+errorCode	
+string
+404 Promotion not found.
+Response Schema: application/json
+message	
+string
+details	
+Array of objects (ErrorResponse.ErrorResponseDetails)
+errorCode	
+string
+409 Conflict occurred because the promotion is in an invalid state.
+Response Schema: application/json
+message	
+string
+details	
+Array of objects (ErrorResponse.ErrorResponseDetails)
+errorCode	
+string
+5xx Internal server error.
+
+delete
+/promotions/{promotionId}
+
+Request samples
+Payload
+
+Copy
+{
+"reason": "Deletion Reason"
+}
+Response samples
+400401403404409
+
+Copy
+Expand allCollapse all
+{
+"message": "string",
+"details": [
+{}
+],
+"errorCode": "string"
+}
+Retrieve the bonus sets of Promotion
+Retrieve the bonus sets associated with a given Promotion.
+
+Authorizations:
+ApiKeyAuth
+path Parameters
+promotionId
+required
+string
+Unique identifier of the promotion.
+
+Responses
+200 Bonus sets retrieved successfully.
+Response Schema: application/json
+Array 
+id
+required
+string <uuid>
+Unique identifier of the bonus set. Must be a UUID represented by a standard 36-char string.
+
+budget	
+integer <int64>
+The total budget for the bonus set, defining the limit on the total number of bonuses that can be awarded.
+
+budgetUnit	
+string
+Enum: "BONUS_SETS" "BONUSES"
+The unit of the budget, indicating whether it applies to individual bonuses or sets of bonuses.
+
+awardedAmount
+required
+integer <int64>
+The total amount awarded from the budget.
+
+currencies
+required
+Array of objects (BonusSetCurrency)
+Defines the bonus set configurations for different currencies.
+
+401 Unauthorized access.
+Response Schema: application/json
+message	
+string
+details	
+Array of objects (ErrorResponse.ErrorResponseDetails)
+errorCode	
+string
+403 Insufficient permissions.
+Response Schema: application/json
+message	
+string
+details	
+Array of objects (ErrorResponse.ErrorResponseDetails)
+errorCode	
+string
+404 Promotion not found.
+Response Schema: application/json
+message	
+string
+details	
+Array of objects (ErrorResponse.ErrorResponseDetails)
+errorCode	
+string
+5xx Internal server error.
+
+get
+/promotions/{promotionId}/bonus-sets
+
+Response samples
+200401403404
+
+Copy
+Expand allCollapse all
+[
+{
+"id": "f0f30ef7-08d0-436f-bc99-87202d1ed116",
+"budget": 100,
+"budgetUnit": "BONUS_SETS",
+"awardedAmount": 0,
+"currencies": []
+}
+]
+Cancel Promotion
+This method is used whenever the Casino Operator would like to cancel a Promotion.
+
+Authorizations:
+ApiKeyAuth
+path Parameters
+promotionId
+required
+string
+Unique identifier of the promotion.
+
+Request Body schema: application/json
+required
+The settings needed for cancelling a promotion.
+
+reason
+required
+string [ 1 .. 128 ] characters
+The reason for cancelling the promotion.
+
+Responses
+200 Promotion cancelled successfully.
+Response Schema: application/json
+id
+required
+string
+The unique identifier of the promotion.
+
+name
+required
+string
+The name of the promotion.
+
+description	
+string
+An optional description of the promotion.
+
+currency
+required
+string
+The main currency code for the promotion, defined by the three-letter currency code as per ISO-4217.
+
+additionalCurrencies
+required
+Array of strings
+Additional currencies supported by the promotion, defined by the three-letter currency code as per ISO-4217.
+
+triggerType
+required
+string
+Enum: "NONE" "START_DATE" "CHANCE_PER_STAKE"
+The method by which bonuses are awarded in the promotion.
+
+triggerConfiguration	
+object
+Any additional configuration details needed for the specified trigger type.
+
+state
+required
+string
+Enum: "CREATED" "LIVE" "CANCELLED" "EXHAUSTED" "PAUSED" "FINISHED" "COMPLETED"
+The current state of the promotion.
+
+publishDateTime	
+string <date-time>
+The publishing date and time of the promotion. (UTC time zone)
+
+startDateTime
+required
+string <date-time>
+The start date and time of the promotion. (UTC time zone)
+
+endDateTime
+required
+string <date-time>
+The end date and time of the promotion. (UTC time zone)
+
+displayUntil	
+string <date-time>
+The display until date and time after the end date of the promotion. (UTC time zone)
+
+cancellationReason	
+string
+Reason for the promotion's cancellation, if applicable.
+
+games
+required
+Array of integers <int32> [ items <int32 > ]
+The unique identifiers of the games eligible for the bonuses of this promotion.
+
+includeBonusMoney	
+boolean
+Indicates whether bonus money transfers are eligible to be processed by the promotion. If the parameter is not provided, it automatically defaults to true.
+
+bonusType
+required
+string
+Enum: "FREE_SPIN" "FREE_BUY_BONUS" "LUCKY_SPIN" "GOLDEN_CHIP" "COUNTDOWN_FREE_SPIN"
+The type of the bonuses awarded from promotion.
+
+bonusTypeConfiguration	
+object
+Any additional configuration details needed for the specified bonus type.
+
+bonusClaimByStrategy	
+string
+Enum: "RELATIVE_TO_AWARD" "CUSTOM"
+The strategy for determining the deadline by which the bonuses awarded from this promotion must be claimed, if applicable.
+
+bonusClaimByMinutes	
+integer <int64> [ 0 .. 1440000 ]
+The number of minutes the bonuses awarded from this promotion are available to be claimed after being awarded. Will be set when the bonusClaimByStrategy is RELATIVE_TO_AWARD.
+
+bonusClaimByDateTime	
+string <date-time>
+The deadline by which the bonuses awarded from this promotion must be claimed. Will be set when the bonusClaimByStrategy is CUSTOM.
+
+bonusExpirationStrategy	
+string
+Enum: "RELATIVE_TO_CLAIM" "CUSTOM"
+The strategy for determining when bonuses awarded from this promotion will expire.
+
+bonusExpirationMinutes	
+integer <int64> ( 0 .. 1440000 ]
+The number of minutes a bonus awarded from this promotion will be valid for after being claimed. Will be set when the bonusExpirationStrategy is RELATIVE_TO_CLAIM.
+
+bonusExpirationDateTime	
+string <date-time>
+The exact date when the bonuses awarded from this promotion will expire. Will be set when the bonusExpirationStrategy is CUSTOM.
+
+portals
+required
+Array of objects (Member)
+The portals participating in the promotion.
+
+400 Bad request due to validation errors.
+Response Schema: application/json
+message	
+string
+details	
+Array of objects (ErrorResponse.ErrorResponseDetails)
+errorCode	
+string
+401 Unauthorized access.
+Response Schema: application/json
+message	
+string
+details	
+Array of objects (ErrorResponse.ErrorResponseDetails)
+errorCode	
+string
+403 Insufficient permissions.
+Response Schema: application/json
+message	
+string
+details	
+Array of objects (ErrorResponse.ErrorResponseDetails)
+errorCode	
+string
+404 Promotion not found.
+Response Schema: application/json
+message	
+string
+details	
+Array of objects (ErrorResponse.ErrorResponseDetails)
+errorCode	
+string
+409 Conflict occurred because the promotion is in an invalid state.
+Response Schema: application/json
+message	
+string
+details	
+Array of objects (ErrorResponse.ErrorResponseDetails)
+errorCode	
+string
+5xx Internal server error.
+
+post
+/promotions/{promotionId}/cancel
+
+Request samples
+Payload
+
+Copy
+{
+"reason": "Cancellation Reason"
+}
+Response samples
+200400401403404409
+
+Copy
+Expand allCollapse all
+{
+"id": "641652389480553803",
+"name": "Promotion Name",
+"description": "Promotion Description",
+"currency": "EUR",
+"additionalCurrencies": [
+"USD"
+],
+"triggerType": "CHANCE_PER_STAKE",
+"triggerConfiguration": {
+"chancePerStakeConfigurations": []
+},
+"state": "CREATED",
+"startDateTime": "2024-01-01T00:00:00Z",
+"endDateTime": "2024-12-31T23:59:59Z",
+"games": [
+529,
+530
+],
+"bonusType": "LUCKY_SPIN",
+"bonusExpirationMinutes": 43200,
+"portals": [
+{},
+{}
+]
+}
+Retrieve Promotion's details
+Retrieve detailed information about a promotion using its unique identifier.
+
+Authorizations:
+ApiKeyAuth
+path Parameters
+promotionId
+required
+string
+Unique identifier of the promotion.
+
+Responses
+200 Detailed promotion retrieved successfully.
+Response Schema: application/json
+promotion
+required
+object
+The basic details of the promotion.
+
+id
+required
+string
+The unique identifier of the promotion.
+
+name
+required
+string
+The name of the promotion.
+
+description	
+string
+An optional description of the promotion.
+
+currency
+required
+string
+The main currency code for the promotion, defined by the three-letter currency code as per ISO-4217.
+
+additionalCurrencies
+required
+Array of strings
+Additional currencies supported by the promotion, defined by the three-letter currency code as per ISO-4217.
+
+triggerType
+required
+string
+Enum: "NONE" "START_DATE" "CHANCE_PER_STAKE"
+The method by which bonuses are awarded in the promotion.
+
+triggerConfiguration	
+object
+Any additional configuration details needed for the specified trigger type.
+
+chancePerStakeConfigurations
+required
+Array of objects (ChancePerStakeConfiguration) [ 1 .. 50 ] items
+Configurations for "Chance per Stake" promotions, defining the probability of winning a bonus for a particular bet range. Constraint: The parameter is required for CHANCE_PER_STAKE.
+
+state
+required
+string
+Enum: "CREATED" "LIVE" "CANCELLED" "EXHAUSTED" "PAUSED" "FINISHED" "COMPLETED"
+The current state of the promotion.
+
+publishDateTime	
+string <date-time>
+The publishing date and time of the promotion. (UTC time zone)
+
+startDateTime
+required
+string <date-time>
+The start date and time of the promotion. (UTC time zone)
+
+endDateTime
+required
+string <date-time>
+The end date and time of the promotion. (UTC time zone)
+
+displayUntil	
+string <date-time>
+The display until date and time after the end date of the promotion. (UTC time zone)
+
+cancellationReason	
+string
+Reason for the promotion's cancellation, if applicable.
+
+games
+required
+Array of integers <int32> [ items <int32 > ]
+The unique identifiers of the games eligible for the bonuses of this promotion.
+
+includeBonusMoney	
+boolean
+Indicates whether bonus money transfers are eligible to be processed by the promotion. If the parameter is not provided, it automatically defaults to true.
+
+bonusType
+required
+string
+Enum: "FREE_SPIN" "FREE_BUY_BONUS" "LUCKY_SPIN" "GOLDEN_CHIP" "COUNTDOWN_FREE_SPIN"
+The type of the bonuses awarded from promotion.
+
+bonusTypeConfiguration	
+object
+Any additional configuration details needed for the specified bonus type.
+
+freeBuyBonusConfiguration	
+object
+Configuration for "Free Buy Bonus" bonuses, defining the awarded feature. Constraint: The parameter is required for FREE_BUY_BONUS
+
+goldenChipConfiguration	
+object
+Configuration for "Golden Chip" bonuses, defining the betting restrictions. Constraint: The parameter is required for GOLDEN_CHIP.
+
+countdownFreeSpinConfiguration	
+object
+Configuration for "Countdown Free Spin" bonuses. Constraint: The parameter is required for COUNTDOWN_FREE_SPIN
+
+bonusClaimByStrategy	
+string
+Enum: "RELATIVE_TO_AWARD" "CUSTOM"
+The strategy for determining the deadline by which the bonuses awarded from this promotion must be claimed, if applicable.
+
+bonusClaimByMinutes	
+integer <int64> [ 0 .. 1440000 ]
+The number of minutes the bonuses awarded from this promotion are available to be claimed after being awarded. Will be set when the bonusClaimByStrategy is RELATIVE_TO_AWARD.
+
+bonusClaimByDateTime	
+string <date-time>
+The deadline by which the bonuses awarded from this promotion must be claimed. Will be set when the bonusClaimByStrategy is CUSTOM.
+
+bonusExpirationStrategy	
+string
+Enum: "RELATIVE_TO_CLAIM" "CUSTOM"
+The strategy for determining when bonuses awarded from this promotion will expire.
+
+bonusExpirationMinutes	
+integer <int64> ( 0 .. 1440000 ]
+The number of minutes a bonus awarded from this promotion will be valid for after being claimed. Will be set when the bonusExpirationStrategy is RELATIVE_TO_CLAIM.
+
+bonusExpirationDateTime	
+string <date-time>
+The exact date when the bonuses awarded from this promotion will expire. Will be set when the bonusExpirationStrategy is CUSTOM.
+
+portals
+required
+Array of objects (Member)
+The portals participating in the promotion.
+
+bonusSets
+required
+Array of objects (BonusSet)
+The promotion's bonus sets.
+
+Array 
+id
+required
+string <uuid>
+Unique identifier of the bonus set. Must be a UUID represented by a standard 36-char string.
+
+budget	
+integer <int64>
+The total budget for the bonus set, defining the limit on the total number of bonuses that can be awarded.
+
+budgetUnit	
+string
+Enum: "BONUS_SETS" "BONUSES"
+The unit of the budget, indicating whether it applies to individual bonuses or sets of bonuses.
+
+awardedAmount
+required
+integer <int64>
+The total amount awarded from the budget.
+
+currencies
+required
+Array of objects (BonusSetCurrency)
+Defines the bonus set configurations for different currencies.
+
+skinPlayers
+required
+Array of objects (SkinPlayers)
+The promotion's player configuration segregated by skin.
+
+Array 
+skin
+required
+object
+The skin to which the player segmentation applies.
+
+playersConfiguration
+required
+string
+Enum: "ALL_PLAYERS" "INCLUDED" "EXCLUDED"
+The configuration type indicating player eligibility criteria for this skin.
+
+players	
+Array of objects (PromotionPlayer)
+The players explicitly configured for inclusion or exclusion based on the segmentation type.
+
+livePeriods	
+Array of objects (PromotionLivePeriod)
+The list of specific time windows during which this promotion is active, as returned by the system.
+
+Array 
+startDateTime
+required
+string <date-time>
+The start date and time of the live period.
+
+endDateTime
+required
+string <date-time>
+The end date and time of the live period.
+
+401 Unauthorized access.
+Response Schema: application/json
+message	
+string
+details	
+Array of objects (ErrorResponse.ErrorResponseDetails)
+errorCode	
+string
+403 Insufficient permissions.
+Response Schema: application/json
+message	
+string
+details	
+Array of objects (ErrorResponse.ErrorResponseDetails)
+errorCode	
+string
+404 Promotion not found.
+Response Schema: application/json
+message	
+string
+details	
+Array of objects (ErrorResponse.ErrorResponseDetails)
+errorCode	
+string
+5xx Internal server error.
+
+get
+/promotions/{promotionId}/detailed
+
+Response samples
+200401403404
+
+Copy
+Expand allCollapse all
+{
+"promotion": {
+"id": "641652389480553803",
+"name": "Promotion Name",
+"description": "Promotion Description",
+"currency": "EUR",
+"additionalCurrencies": [],
+"triggerType": "CHANCE_PER_STAKE",
+"triggerConfiguration": {},
+"state": "CREATED",
+"startDateTime": "2024-01-01T00:00:00Z",
+"endDateTime": "2024-12-31T23:59:59Z",
+"games": [],
+"bonusType": "LUCKY_SPIN",
+"bonusExpirationMinutes": 43200,
+"portals": []
+},
+"bonusSets": [
+{}
+],
+"skinPlayers": [
+{}
+],
+"livePeriods": [
+{}
+]
+}
+Get games details
+This method is used whenever the Casino Operator would like to obtain the Game details.
+
+Authorizations:
+ApiKeyAuth
+query Parameters
+gins
+required
+Array of integers <int32> [ items <int32 > ]
+Filter games by their unique identifiers. One may retrieve information for multiple games by passing more than one game identification number as query parameter.
+
+portalName
+required
+string [ 1 .. 128 ] characters
+The name of the portal to resolve details for.
+
+currency
+required
+string = 3 characters
+The currency to resolve game details for, defined by the three-letter currency code as per ISO-4217. One may retrieve information for only one currency per request.
+
+Responses
+200 Games Details retrieved successfully.
+Response Schema: application/json
+Array 
+gin
+required
+integer <int32>
+The unique identifier of the game.
+
+portal
+required
+object
+The portal associated with the game.
+
+id
+required
+string
+The unique identifier of the member.
+
+name
+required
+string
+The name of the member.
+
+currency
+required
+string
+The currency code associated with the game details, defined by the three-letter currency code as per ISO-4217.
+
+betAmounts
+required
+Array of numbers
+The bet amounts associated with the game for the given portal and currency.
+
+supportedBonusTypes
+required
+Array of strings (BonusType)
+Items Enum: "FREE_SPIN" "FREE_BUY_BONUS" "LUCKY_SPIN" "GOLDEN_CHIP" "COUNTDOWN_FREE_SPIN"
+The supported bonus types for the game.
+
+buyBonusFeatures
+required
+Array of objects (BuyBonusFeature)
+The bonus features associated with the game.
+
+Array 
+id
+required
+string
+The unique identifier of the Buy Bonus Feature.
+
+name
+required
+string
+The unique friendly name of the Buy Bonus Feature.
+
+priceMultiplier
+required
+number
+The multiplier for the Buy Bonus Feature, which is multiplied by the bet value.
+
+400 Bad request due to validation errors.
+Response Schema: application/json
+message	
+string
+details	
+Array of objects (ErrorResponse.ErrorResponseDetails)
+errorCode	
+string
+401 Unauthorized access.
+Response Schema: application/json
+message	
+string
+details	
+Array of objects (ErrorResponse.ErrorResponseDetails)
+errorCode	
+string
+5xx Internal server error.
+
+get
+/game-details?gins={gameGIN}&portalName={portalName}&currency={currency}
+
+Response samples
+200400401
+
+Copy
+Expand allCollapse all
+[
+{
+"gin": 529,
+"portal": {},
+"currency": "EUR",
+"betAmounts": [],
+"supportedBonusTypes": [],
+"buyBonusFeatures": []
+}
+]

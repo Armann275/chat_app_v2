@@ -1,0 +1,4990 @@
+Integration Overview
+The purpose of this section is to provide basic description of Amusnet Multi Game Server (MGS) integration with different platform.
+
+Glossary¶
+   MGS – Amusnet Interactive Multi Game Server
+   Casino Operator – Amusnet Interactive MGS Client - Casino Operator
+   API – Application Program Interface
+   Optional parameter – Parameter which is required only for specific jurisdictions. It can be added to standard protocol depending on the market where Casino Operator operates
+   Bonus – The Free Spin feature
+   Bundle – The awarded bonuses by one API request to one Player
+   Free Game Server – Instance of MGS available for free play
+   FGLP – Free Game Launch Protocol
+
+Integration Process¶
+Creating a testing environment¶
+The endpoints provided by Casino Operator should be implemented according to the following example:
+
+
+https://{casino-operator-domain}/v1/auth
+
+https://{casino-operator-domain}/v1/withdraw
+
+https://{casino-operator-domain}/v1/deposit
+
+https://{casino-operator-domain}/v1/withdraw-deposit
+
+https://{casino-operator-domain}/v1/award-deposit
+
+https://{casino-operator-domain}/v1/buy-in/withdraw
+
+https://{casino-operator-domain}/v1/buy-in/deposit
+Once the endpoints are implemented and provided to the MGS testing process on MGS Staging environment can start from both sides.
+Once testing is finished, the communication can go to Production environment.
+For Production environment, a new Amusnet MGS domain name will be provided.
+
+Game Cycle¶
+This section serves as a reference for the technical staff who will perform the required integration work on the Casino Operator's side. It includes example of a typical Game Round cycle and information about the API methods.
+
+Sequence Diagram¶
+MGS
+Casino Operator
+Browser
+Player
+MGS
+Casino Operator
+Browser
+Player
+Via Browser
+Via Browser
+click Game Link
+1
+generate Game Launch URL
+2
+generate Defence Code
+3
+Game Launch URL
+4
+Game Launch Request with Defence Code
+5
+Auth Request
+6
+generate Authentication Token
+7
+Auth Response
+8
+Game Launch Response
+9
+make bet
+10
+Withdraw Request
+11
+Withdraw Response
+12
+Deposit Request
+13
+Deposit Response
+14
+show Game Result
+15
+click Game inside the Portal
+16
+Game Launch Request with Authentication Token
+17
+Auth Request
+18
+generate Authentication Token
+19
+Auth Response
+20
+Game Launch Response
+21
+make Bet
+22
+Withdraw Request
+23
+Withdraw Response
+24
+Deposit Request
+25
+Deposit Response
+26
+show Game Result
+27
+Important Note
+
+Amusnet Multi Game Server supports games which allow a single Game Round to contain more than one Withdraw and Deposit request.
+
+Steps¶
+Step 1 - The Player clicks on the play link of а game or а Portal integrated in the Casino Operator website
+Step 2 - Casino Operator website generates Game Launch link
+Step 3 - The Casino Operator generates a DefenceCode
+Step 4 - The Casino Operator encloses the DefenceCode to the Game/Portal launch URL (HTTPS request) along with other parameters and sends it towards Amusnet MGS
+Step 5 - Casino Operator website generates Game Launch request to Amusnet MGS
+Step 6 - An Authentication Request is made by Amusnet MGS towards the Casino Operator using the DefenceCode provided by the HTTPS request parameters
+Step 7 - The Casino Operator generates an AuthenticationToken which will be used for multiple Game Authentications inside the Portal
+Step 8 - The Casino Operator sends an Authentication Response containing the player's available balance and the AuthenticationToken
+Step 9 - Game is shown to the Player
+Step 10 - The Player chooses an amount and makes a Bet on a chosen Game
+Step 11 - Withdrawal Request is initiated by Amusnet MGS. This method requests the Bet amount from the Player's account with the Casino Operator
+Step 12 - The Withdrawal Response should contain CasinoTransferId and updated balance
+Step 13 - The outcome for this specific bet is generated. A Deposit Request is initiated by Amusnet MGS. This request transfers the amount won in the Game to the Player's account with the Casino Operator
+Step 14 - The Deposit response should contain CasinoTransferId and the updated balance
+Step 15 - The result is shown to the Player
+Step 16 - The Player clicks on another Game from inside the Portal
+Step 17 - Previously generated authentication token will be supplied as cookie in the browser
+Step 18 - An Authenticate request is made by Amusnet MGS towards the Casino Operator using the AuthenticationToken provided by the HTTPS request parameters
+Step 19 - The Casino Operator validates the AuthenticationToken
+Step 20 - The Casino Operator sends an Authenticate response containing the Player's available balance
+Step 21 - Game is shown to the Player
+Step 22 - The Player chooses an amount and makes a bet on a chosen Game
+Step 23 - Withdrawal Request is initiated by Amusnet MGS. This method requests the bet amount from the Player's account with the Casino Operator
+Step 24 - The Withdrawal Response should contain CasinoTransferId and updated balance
+Step 25 - The outcome for this specific bet is generated. A Deposit Request is initiated by Amusnet MGS. This request transfers the amount won in the Game to the Player's account with the Casino Operator
+Step 26 - The Deposit response should contain CasinoTransferId and the updated balance
+Step 27 - The result is shown to the Player
+
+
+Security Model¶
+For protection of both the Casino Operator and the Amusnet MGS, the following methods are used: IP filtering and predefined username and password of each request for mutual authentication.
+
+Username and Password¶
+To establish Casino Operator system - Amusnet MGS HTTPS authentication the Amusnet MGS predefines a username and password for the Casino Operator.
+The Amusnet MGS encloses the username and password in each request to the Casino Operator system. The username and password are presented as Header: Authorization; auth-scheme: Basic; encoding: Base64 in each request.
+
+IP Detection¶
+Amusnet MGS provides the Casino Operator with a list of authorized IP addresses. Only HTTPS requests originating from these IP addresses must be handled. Connection attempts from any other IP address must be rejected.
+
+Game Play Integration¶
+Game Launch URL¶
+When a Player clicks a link on the Casino Operator website to launch a Game, the HTTPS request is generated. The Casino Operator's system transmits data to the Amusnet MGS system within a URL string. The data uniquely identifies the Player, the Currency, the selected Game, the Casino Operator system and the Portal. These and other parameters allow Amusnet MGS system to authorize and authenticate the Player and launch the selected Game.
+
+During this operation, the resulting Game Launch URL should be looking similar to this:
+
+
+https://{amusnet-mgs-domain}/MGL?defenceCode=25cac65913564a6178526ecf0e95212d&playerId=11111&portalCode=SomeOperatorId_EUR&language=en&country=bg&gameId=801&screenName=1111&hasPromo=true
+Mandatory Parameters¶
+defenceCode - secure code which is a unique string generated by the Casino Operator system, used for Portal launch and Authenticate; it can be used only once
+playerId - unique ID string for specific Player assigned by the Casino Operator system
+portalCode - predefined constant that binds Portal and Currency, provided by the Amusnet MGS system
+language – language code (ISO 639-1)
+country – the country which the Player provided at registration with the Casino Operator (ISO 3166-1 alpha-2)
+gameId – unique internal number that refers to a specific game; launch with a specific game
+Optional Parameters¶
+screenName – the visual representation of the Player's nickname; if none the default value is player
+hasPromo – a boolean flag that indicate whether the player is eligible to participate in promotions; if the parameter is not provided, then the player is considered eligible for promotions participation; possible values true or false
+Parameter Restrictions¶
+Parameter	Type	Maximum Length	Disallowed characters
+defenceCode	Text	192 characters	
+session_id	Text	128 characters	
+screenName	Text	128 characters	
+playerId	Text	64 characters	#
+authenticationToken	Text	192 characters	
+Important Security Note
+
+Every time when a Player attempts to launch a game from Casino Operator site, the Casino Operator must generate a new defenceCode. The defenceCode is used only once for authentication and for generation of AuthenticationToken (which is reusable) and when the authentication is done, the defenceCode becomes invalid and nonreusable. If there is no Authentication request 2 minutes after the defenceCode is generated, the defenceCode must be ivalidated. It is recommended that if there is no Authentication request with this AuthenticationToken 6 hours after it is lastly used, this AuthenticationToken expires.
+Amusnet MGS system does not validate the defenceCode reuse by any means!
+
+Mobile Game Launch URL¶
+When the Casino Operator detects that the Player is launching games from a mobile device, a client parameter should be added in Game Launch URL:
+
+
+https://{amusnet-mgs-domain}/MGL?defenceCode=25cac65913564a6178526ecf0e95212d&playerId=11111&portalCode=SomeOperatorId_EUR&screenName=11111&language=en&country=bg&gameId=801&client=mobile&closeurl=someurl
+Mandatory Parameters¶
+client – specifies the type of application - web or mobile - in order to launch the appropriate game content; the expected values are either client=desktop for desktop content, or client=mobile for mobile version
+Optional Parameters¶
+closeurl – URL value used for redirection to Casino Operator page, when Player clicks on the Home button within a Game. In case not provided, close tab function is executed. If the game is launched in an iframe you can pass com.egt-bg.postMessage in which case a postMessage will be sent to the parent window.
+In case when Game is launched in an iframe, the following JavaScript code should be placed in the page where the iframe referring to Amusnet MGS is embedded:
+
+
+Implement custom logic here to be executed when the user presses the exit button of the GamePlatform
+
+function onExitGamePlatformEGT() {
+    ... your custom exit logic here
+}
+
+There is additional button for reloading the game when no connection occurs. You can implement what happens when the user presses the reload button here
+
+function onReloadGamePlatformEGT() {
+    .... your custom reload logic here
+}
+
+function receiveMessage(event) {
+    if (event.data) {
+        if (event.data.command == 'com.egt-bg.exit') {
+            onExitGamePlatformEGT();
+        }
+        else if (event.data.command == 'com.egt-bg.reload') {
+            onReloadGamePlatformEGT();  
+        } 
+    }
+}
+
+window.addEventListener("message", receiveMessage, false);
+
+Game Display¶
+We recommend launching desktop games in an iframe with the following attribute present allow="autoplay; fullscreen";. If the games are not launched this way, they will not be able to go fullscreen and autoplay sounds on some browsers will start muted. If you don't allow fullscreen for the iframe, we will send you the event 'requestFullscreen' when the user wants to enter fullscreen and 'cancelFullscreen' when the user wants to exit fullscreen. Then you can call the appropriate browser APIs. Note that in this case we expect to receive this event
+
+
+{
+    name: "fullscreenChanged",
+    isFullscreen: <boolean telling use if the browser is in fullscreen or not>
+}
+This will allow us to properly update the UI in the game.
+When launching an Amusnet MGS Game, the default container's resolution must be 1280x720 (16:9).
+
+Front-End Integration
+AMUSNET Front-end Events
+
+Available postMessages:
+
+closeurl: URL address used for redirection to CO page, when player clicks on the Home button within a game. In case not provided, close tab function is executed. If the game is launched in an iframe you can pass "com.egt-bg.postMessage" in which case a postMessage will be sent to the parent window.
+The following java script code should be placed in the page where the iframe referring to Amusnet MGS is embedded:
+
+
+// Implement custom logic here to be executed when the user presses // the exit button of the GamePlatform
+function onExitGamePlatformEGT() {
+// ... your custom exit logic here
+}
+// For all Amusnet games there is additional button for reloading the game // when no connection occurs. You can implement what happens
+// when the user presses the reload button here
+function onReloadGamePlatformEGT() {
+// .... your custom reload logic here
+}
+function receiveMessage(event) {
+if (event.data) {
+if (event.data.command == 'com.egt-bg.exit') onExitGamePlatformEGT();
+else if (event.data.command == 'com.egt-bg.reload') onReloadGamePlatformEGT();
+}
+}
+window.addEventListener("message", receiveMessage, false);
+
+Restricted countries
+Restricted Countries
+
+Launching games from restricted countries is not possible due to regional restrictions and compliance with international regulations, which prevent access to content in prohibited geographic areas.
+
+No	Territories which are completely forbidden
+1	Afghanistan
+2	Angola
+3	Australia
+4	Ontario
+5	Hong Kong S.A.R.
+6	Iran
+7	Iraq
+8	Israel
+9	Moldova
+10	Nicaragua
+11	Norway
+12	Syria
+13	Taiwan
+14	United Kingdom
+15	United States
+15.1	U.S Virgin Islands
+15.2	United States Minor Outlaying Islands
+15.3	Guam
+15.4	Puerto Rico
+15.5	Northern Mariana Islands
+15.6	American Samoa
+Casino operator must hold local license in order to be eligable to accept traffic from the below countries:
+
+No	Territories which are forbidden unless the Operator holds the relevant license
+1	Bulgaria
+2	Greece
+3	Lithuania
+4	Netherlands
+5	Romania
+6	Sweden
+7	Denmark
+8	Peru
+
+
+Seamless Wallet Protocol
+Description
+Wallet API specifications of Amusnet MGS
+
+Authenticate - defence code
+Used for the initial authentication of a player during a game launch from the Casino Operator's lobby. The provided defenceCode is a single-use security token that must be invalidated immediately upon successful authentication. If an AuthRequest is not received within 2 minutes of the code being generated, the defenceCode must be expired by your system.
+
+Authorizations:
+Native System Auth
+Request Body schema: application/json
+required
+portalCode
+required
+string
+Predefined constant that binds Portal and Currency, provided by Amusnet MGS system
+
+playerId
+required
+string
+A Casino Operator's Player ID
+
+defenceCode
+required
+string
+Secure Code sent by the Casino Operator when the Game is launched
+
+sessionId
+required
+string
+Provided by Amusnet MGS and it remains valid until the end of the Game session
+
+gameId
+required
+string
+Unique Game ID provided by Amusnet MGS system
+
+Responses
+200 Authenticate Successful
+Response Schema: application/json
+balance	
+integer <int64>
+Player's current Casino Operator available balance
+
+authenticationToken	
+string
+Reusable token for multiple authentications from inside Amusnet MGS portal
+
+responseCodeReason	
+string
+Predefined (by MGS) code representing the request outcome
+
+errorMessage	
+string
+Sent by operator
+
+401 Unauthorized Access
+Response Schema: application/json
+responseCodeReason	
+string
+userName and/or password not correct -> value WRONG_CREDENTIALS or defenceCode expiration time has passed and the Player cannot be identified via the same defenceCode -> value EXPIRED
+
+408 Request Timeout
+Response Schema: application/json
+responseCodeReason	
+null
+Failed to finish the processing of the request -> value null
+
+5xx Internal Server Error
+Response Schema: application/json
+responseCodeReason	
+null
+Communication problem. Something went wrong and for sure the transfer is canceled/invalid in the Casino Operator system. This response code should be used also in case there is something wrong with the sent payload e.g. wrong playerId, wrong defenceCode, etcetera -> value null
+
+portalAction	
+object (PortalAction)
+Optional action/message provided by the Casino Operator to be displayed to the player.
+
+
+post
+/v1/auth
+
+Request samples
+Payload
+
+Copy
+{
+"portalCode": "string",
+"playerId": "string",
+"defenceCode": "string",
+"sessionId": "string",
+"gameId": "string"
+}
+Response samples
+2004014085xx
+
+Copy
+{
+"balance": 0,
+"authenticationToken": "string",
+"responseCodeReason": "string",
+"errorMessage": "string"
+}
+Authenticate - authentication token
+This method is used for every consecutive launch of a game through the Amusnet's lobby
+
+Authorizations:
+Native System Auth
+Request Body schema: application/json
+required
+portalCode
+required
+string
+Predefined constant that binds Portal and Currency, provided by Amusnet MGS system
+
+playerId
+required
+string
+A Casino Operator's Player ID
+
+authenticationToken
+required
+string
+Reusable token for multiple authentications from inside Amusnet MGS portal
+
+sessionId
+required
+string
+Provided by Amusnet MGS and it remains valid until the end of the Game session
+
+gameId
+required
+string
+Unique Game ID provided by Amusnet MGS system
+
+Responses
+200 Authenticate Successful
+Response Schema: application/json
+balance	
+integer <int64>
+Player's current Casino Operator available balance
+
+authenticationToken	
+string
+Reusable token for multiple authentications from inside Amusnet MGS portal
+
+responseCodeReason	
+string
+Predefined (by MGS) code representing the request outcome
+
+errorMessage	
+string
+Sent by operator
+
+401 Unauthorized Access
+Response Schema: application/json
+responseCodeReason	
+string
+userName and/or password not correct -> value WRONG_CREDENTIALS or authenticationToken expiration time has passed and the Player cannot be identified via the same authenticationToken -> value EXPIRED
+
+408 Request Timeout
+Response Schema: application/json
+responseCodeReason	
+null
+Failed to finish the processing of the request -> value null
+
+5xx Internal Server Error
+Response Schema: application/json
+responseCodeReason	
+null
+Communication problem. Something went wrong and for sure the transfer is canceled/invalid in the Casino Operator system. This response code should be used also in case there is something wrong with the sent payload e.g. wrong playerId, wrong defenceCode, etcetera -> value null
+
+portalAction	
+object (PortalAction)
+Optional action/message provided by the Casino Operator to be displayed to the player.
+
+
+post
+/v1/auth
+
+Request samples
+Payload
+
+Copy
+{
+"portalCode": "string",
+"playerId": "string",
+"authenticationToken": "string",
+"sessionId": "string",
+"gameId": "string"
+}
+Response samples
+2004014085xx
+
+Copy
+{
+"balance": 0,
+"authenticationToken": "string",
+"responseCodeReason": "string",
+"errorMessage": "string"
+}
+Withdraw
+This method is used to withdraw money from the Player's wallet
+
+Authorizations:
+Native System Auth
+Request Body schema: application/json
+required
+playerId
+required
+string
+A Casino Operator's Player ID
+
+transferId
+required
+string
+The unique transaction number assigned by Amusnet MGS
+
+gameId
+required
+string
+Unique Game ID provided by Amusnet MGS system
+
+gameNumber
+required
+string
+Amusnet MGS unique Bet ID (it can be associated to more than one Transfer ID)
+
+sessionId
+required
+string
+Provided by Amusnet MGS and it remains valid until the end of the Game session
+
+amount
+required
+integer <int64>
+The Transfer amount in the respective Player's currency
+
+baseBet
+required
+integer <int64>
+The BaseBet is present when a multiplier is applied to a bet and in such way that baseBet * multiplier = amount; if no multiplier is involved, baseBet is equal to the amount
+
+currency
+required
+string
+Currency the Player uses in the Casino Operator system; ISO 4217 standard
+
+reason
+required
+string
+Indicates the purpose of the withdrawal. Possible values include:
+
+ROUND_BEGIN: Sent when a player initiates a game round and places an initial bet.
+ROUND_CONTINUE: Indicates an interim bet. This occurs in rare multi-stage game scenarios where a player has multiple timing options to place additional bets within the same game round. In these cases, two or more Withdraw requests may be sent to your system using the same gameNumber.
+portalCode
+required
+string
+Predefined constant that binds Portal and Currency, provided by the Amusnet MGS system
+
+platformType
+required
+string
+DESKTOP/MOBILE - the parameter which indicates the client used by the Player, when the Transfer is made
+
+bonusSpin	
+object
+Contains parameters for the legacy Bonus System; used specifically to report details of bonus spins played under the legacy promotional framework
+
+bonusData	
+object
+Contains parameters for the new Bonus platform; used for all new bonus awarding and promotions
+
+Responses
+200 Successful Withdraw
+Response Schema: application/json
+balance
+required
+integer <int64>
+Player's current Casino Operator available balance
+
+casinoTransferId	
+string
+The unique transaction number assigned by the Casino Operator
+
+errorMessage	
+string
+Sent by operator
+
+totalBet	
+integer <int64>
+Sent by operator
+
+totalWin	
+integer <int64>
+Sent by operator
+
+betDistribution	
+object
+Contains information what part of the bet is from real money and what part is from bonus money
+
+playTime	
+integer <int32>
+Sent by operator
+
+responseCodeReason	
+string
+Predefined (by MGS) code representing the request outcome
+
+portalAction	
+object (PortalAction)
+Optional action/message provided by the Casino Operator to be displayed to the player.
+
+401 Unauthorized Access
+Response Schema: application/json
+responseCodeReason	
+string
+userName and/or password not correct -> value WRONG_CREDENTIALS
+
+portalAction	
+object (PortalAction)
+Optional action/message provided by the Casino Operator to be displayed to the player.
+
+403 Forbidden
+Response Schema: application/json
+responseCodeReason	
+string
+Not enough money in Player's Wallet for the given transfer to be processed -> value INSUFFICIENT_FUNDS; Player protection limitations; when such an error is received, game will be stopped -> values BET_LIMIT_REACHED or LOSS_LIMIT_REACHED or SESSION_TIME_LIMIT_REACHED or TIME_LIMIT_REACHED
+
+portalAction	
+object (PortalAction)
+Optional action/message provided by the Casino Operator to be displayed to the player.
+
+408 Request Timeout
+Response Schema: application/json
+responseCodeReason	
+null
+Failed to finish the processing of the request -> value null
+
+409 Conflict
+Response Schema: application/json
+responseCodeReason	
+null
+It is essential that the Casino Operator server identifies duplicate requests from Amusnet MGS -> value null
+
+balance	
+integer <int64>
+Player's current Casino Operator available balance
+
+portalAction	
+object (PortalAction)
+Optional action/message provided by the Casino Operator to be displayed to the player.
+
+5xx Internal Server Error
+Response Schema: application/json
+responseCodeReason	
+null
+Communication problem. Something went wrong and for sure the transfer is canceled/invalid in the Casino Operator system. This response code should be used also in case there is something wrong with the sent payload e.g. wrong playerId, wrong defenceCode, etcetera -> value null
+
+portalAction	
+object (PortalAction)
+Optional action/message provided by the Casino Operator to be displayed to the player.
+
+
+post
+/v1/withdraw
+
+Request samples
+Payload
+
+Copy
+Expand allCollapse all
+{
+"playerId": "string",
+"transferId": "string",
+"gameId": "string",
+"gameNumber": "string",
+"sessionId": "string",
+"amount": 0,
+"baseBet": 0,
+"currency": "string",
+"reason": "string",
+"portalCode": "string",
+"platformType": "string",
+"bonusSpin": {
+"identification": "string",
+"campaignUniqueCode": 0,
+"total": 0,
+"remaining": 0
+},
+"bonusData": {
+"bonusType": "FREE_SPIN",
+"bundleId": 0,
+"promotionId": 0,
+"remainingAmount": 0,
+"totalWin": 0
+}
+}
+Response samples
+2004014034084095xx
+
+Copy
+Expand allCollapse all
+{
+"balance": 0,
+"casinoTransferId": "string",
+"errorMessage": "string",
+"totalBet": 0,
+"totalWin": 0,
+"betDistribution": {
+"real": 0,
+"bonus": 0
+},
+"playTime": 0,
+"responseCodeReason": "string",
+"portalAction": {
+"displayMessage": "string",
+"closeConnection": true
+}
+}
+Deposit
+This method is used to deposit money to the Player's wallet
+
+Authorizations:
+Native System Auth
+Request Body schema: application/json
+required
+playerId
+required
+string
+A Casino Operator's Player ID
+
+transferId
+required
+string
+The unique transaction number assigned by Amusnet MGS
+
+gameId
+required
+string
+Unique Game ID provided by Amusnet MGS system
+
+gameNumber
+required
+string
+Amusnet MGS unique Bet ID (it can be associated to more than one Transfer ID)
+
+sessionId
+required
+string
+Provided by Amusnet MGS and it remains valid until the end of the Game session
+
+amount
+required
+integer <int64>
+The Transfer amount in the respective Player's currency
+
+currency
+required
+string
+Currency the Player uses in the Casino Operator system; ISO 4217 standard
+
+reason
+required
+string
+Indicates the purpose of the deposit. Possible values include:
+
+ROUND_END: Sent for a standard win at the conclusion of a game round.
+ROUND_CANCEL: Used for refunds. This can be triggered by technical issues or during reverse integrations if you (the Operator) request to close a game round after the standard resolve cycle has occurred.
+ROUND_CONTINUE: Indicates an interim win. This is used in rare multi-stage game scenarios where a player may receive a partial win or refund while the round remains active. In these cases, two or more Deposit requests may be sent to your system within the same gameNumber.
+ROUND_FORFEIT: Used for non-profit scenarios to close a game round that was not completed.
+JACKPOT_END: Specifically for Jackpot transactions. In the event of a Jackpot win, this secondary Deposit request is generated in addition to the standard win Deposit for that specific spin.
+portalCode
+required
+string
+Predefined constant that binds Portal and Currency, provided by the Amusnet MGS system
+
+platformType
+required
+string
+DESKTOP/MOBILE - the parameter which indicates the client used by the Player, when the Transfer is made
+
+jackpotIds	
+string
+The internal identifier for the jackpot type (e.g., jackpotCards).
+
+bonusSpin	
+object
+Contains parameters for the legacy Bonus System; used specifically to report details of bonus spins played under the legacy promotional framework
+
+bonusData	
+object
+Contains parameters for the new Bonus platform; used for all new bonus awarding and promotions
+
+Responses
+200 Successful Deposit
+Response Schema: application/json
+balance
+required
+integer <int64>
+Player's current Casino Operator available balance
+
+casinoTransferId	
+string
+The unique transaction number assigned by the Casino Operator
+
+errorMessage	
+string
+Sent by operator
+
+totalBet	
+integer <int64>
+Sent by operator
+
+totalWin	
+integer <int64>
+Sent by operator
+
+playTime	
+integer <int32>
+Sent by operator
+
+responseCodeReason	
+string
+Predefined (by MGS) code representing the request outcome
+
+portalAction	
+object (PortalAction)
+Optional action/message provided by the Casino Operator to be displayed to the player.
+
+401 Unauthorized Access
+Response Schema: application/json
+responseCodeReason	
+string
+userName and/or password not correct -> value WRONG_CREDENTIALS
+
+portalAction	
+object (PortalAction)
+Optional action/message provided by the Casino Operator to be displayed to the player.
+
+408 Request Timeout
+Response Schema: application/json
+responseCodeReason	
+null
+Failed to finish the processing of the request -> value null
+
+409 Conflict
+Response Schema: application/json
+responseCodeReason	
+null
+It is essential that the Casino Operator server identifies duplicate requests from Amusnet MGS -> value null
+
+balance	
+integer <int64>
+Player's current Casino Operator available balance
+
+portalAction	
+object (PortalAction)
+Optional action/message provided by the Casino Operator to be displayed to the player.
+
+5xx Internal Server Error
+Response Schema: application/json
+responseCodeReason	
+null
+Communication problem. Something went wrong and for sure the transfer is canceled/invalid in the Casino Operator system. This response code should be used also in case there is something wrong with the sent payload e.g. wrong playerId, wrong defenceCode, etcetera -> value null
+
+portalAction	
+object (PortalAction)
+Optional action/message provided by the Casino Operator to be displayed to the player.
+
+
+post
+/v1/deposit
+
+Request samples
+Payload
+
+Copy
+Expand allCollapse all
+{
+"playerId": "string",
+"transferId": "string",
+"gameId": "string",
+"gameNumber": "string",
+"sessionId": "string",
+"amount": 0,
+"currency": "string",
+"reason": "string",
+"portalCode": "string",
+"platformType": "string",
+"jackpotIds": "string",
+"bonusSpin": {
+"identification": "string",
+"campaignUniqueCode": 0,
+"total": 0,
+"remaining": 0
+},
+"bonusData": {
+"bonusType": "FREE_SPIN",
+"bundleId": 0,
+"promotionId": 0,
+"remainingAmount": 0,
+"totalWin": 0
+}
+}
+Response samples
+2004014084095xx
+
+Copy
+Expand allCollapse all
+{
+"balance": 0,
+"casinoTransferId": "string",
+"errorMessage": "string",
+"totalBet": 0,
+"totalWin": 0,
+"playTime": 0,
+"responseCodeReason": "string",
+"portalAction": {
+"displayMessage": "string",
+"closeConnection": true
+}
+}
+Withdraw and deposit
+This method is used when the result of the specific game round does not require additional decisions/actions on Player's behalf
+
+Authorizations:
+Native System Auth
+Request Body schema: application/json
+required
+playerId
+required
+string
+A Casino Operator's Player ID
+
+transferId
+required
+string
+The unique transaction number assigned by Amusnet MGS
+
+gameId
+required
+string
+Unique Game ID provided by Amusnet MGS system
+
+gameNumber
+required
+string
+Amusnet MGS unique Bet ID (it can be associated to more than one Transfer ID)
+
+sessionId
+required
+string
+Provided by Amusnet MGS and it remains valid until the end of the Game session
+
+amount
+required
+integer <int64>
+The Transfer amount in the respective Player's currency
+
+baseBet
+required
+integer <int64>
+The original bet amount before any multipliers are applied. The relationship is defined as: baseBet * multiplier = amount. If no multiplier is involved, the baseBet is equal to the amount.
+
+currency
+required
+string
+Currency the Player uses in the Casino Operator system; ISO 4217 standard
+
+reason
+required
+string
+Describing the purpose: may be ROUND_END
+
+portalCode
+required
+string
+Predefined constant that binds Portal and Currency, provided by the Amusnet MGS system
+
+platformType
+required
+string
+DESKTOP/MOBILE - the parameter which indicates the client used by the Player, when the Transfer is made
+
+bonusSpin	
+object
+Contains parameters for the legacy Bonus System; used specifically to report details of bonus spins played under the legacy promotional framework
+
+bonusData	
+object
+Contains parameters for the new Bonus platform; used for all new bonus awarding and promotions
+
+winAmount	
+integer <int64>
+Amount won
+
+Responses
+200 Successful WithdrawAndDeposit
+Response Schema: application/json
+balance
+required
+integer <int64>
+Player's current Casino Operator available balance
+
+casinoTransferId	
+string
+The unique transaction number assigned by the Casino Operator
+
+errorMessage	
+string
+Sent by operator
+
+totalBet	
+integer <int64>
+Sent by operator
+
+totalWin	
+integer <int64>
+Sent by operator
+
+betDistribution	
+object
+Contains information what part of the bet is from real money and what part is from bonus money
+
+playTime	
+integer <int32>
+Sent by operator
+
+responseCodeReason	
+string
+Predefined (by MGS) code representing the request outcome
+
+portalAction	
+object (PortalAction)
+Optional action/message provided by the Casino Operator to be displayed to the player.
+
+401 Unauthorized Access
+Response Schema: application/json
+responseCodeReason	
+string
+userName and/or password not correct -> value WRONG_CREDENTIALS
+
+portalAction	
+object (PortalAction)
+Optional action/message provided by the Casino Operator to be displayed to the player.
+
+403 Forbidden
+Response Schema: application/json
+responseCodeReason	
+string
+Not enough money in Player's Wallet for the given transfer to be processed -> value INSUFFICIENT_FUNDS; Player protection limitations; when such an error is received, game will be stopped -> values BET_LIMIT_REACHED or LOSS_LIMIT_REACHED or SESSION_TIME_LIMIT_REACHED or TIME_LIMIT_REACHED
+
+portalAction	
+object (PortalAction)
+Optional action/message provided by the Casino Operator to be displayed to the player.
+
+408 Request Timeout
+Response Schema: application/json
+responseCodeReason	
+null
+Failed to finish the processing of the request -> value null
+
+409 Conflict
+Response Schema: application/json
+responseCodeReason	
+null
+It is essential that the Casino Operator server identifies duplicate requests from Amusnet MGS -> value null
+
+balance	
+integer <int64>
+Player's current Casino Operator available balance
+
+portalAction	
+object (PortalAction)
+Optional action/message provided by the Casino Operator to be displayed to the player.
+
+5xx Internal Server Error
+Response Schema: application/json
+responseCodeReason	
+null
+Communication problem. Something went wrong and for sure the transfer is canceled/invalid in the Casino Operator system. This response code should be used also in case there is something wrong with the sent payload e.g. wrong playerId, wrong defenceCode, etcetera -> value null
+
+portalAction	
+object (PortalAction)
+Optional action/message provided by the Casino Operator to be displayed to the player.
+
+
+post
+/v1/withdraw-deposit
+
+Request samples
+Payload
+
+Copy
+Expand allCollapse all
+{
+"playerId": "string",
+"transferId": "string",
+"gameId": "string",
+"gameNumber": "string",
+"sessionId": "string",
+"amount": 0,
+"baseBet": 0,
+"currency": "string",
+"reason": "string",
+"portalCode": "string",
+"platformType": "string",
+"bonusSpin": {
+"identification": "string",
+"campaignUniqueCode": 0,
+"total": 0,
+"remaining": 0
+},
+"bonusData": {
+"bonusType": "FREE_SPIN",
+"bundleId": 0,
+"promotionId": 0,
+"remainingAmount": 0,
+"totalWin": 0
+},
+"winAmount": 0
+}
+Response samples
+2004014034084095xx
+
+Copy
+Expand allCollapse all
+{
+"balance": 0,
+"casinoTransferId": "string",
+"errorMessage": "string",
+"totalBet": 0,
+"totalWin": 0,
+"betDistribution": {
+"real": 0,
+"bonus": 0
+},
+"playTime": 0,
+"responseCodeReason": "string",
+"portalAction": {
+"displayMessage": "string",
+"closeConnection": true
+}
+}
+Buy-In withdraw
+This method is used to deduct the balance from the wallet of the player when the player buys into a Buy-In Tournament
+
+Authorizations:
+Native System Auth
+Request Body schema: application/json
+required
+playerId	
+string
+A Casino Operator's Player ID
+
+transferId	
+string
+The unique transaction number assigned by Amusnet MGS
+
+type	
+string
+Type of the feature, possible value TOURNAMENT
+
+sourceId	
+integer <int64>
+References where the award came from; Holds the ID for the Tournament
+
+amount	
+integer <int64>
+The Transfer amount in the respective Player's currency
+
+currency	
+string
+Currency the Player uses in the Casino Operator system; ISO 4217 standard
+
+portalCode	
+string
+Predefined constant that binds Portal and Currency, provided by Amusnet MGS system
+
+Responses
+200 Successful Buy-In withdraw
+Response Schema: application/json
+casinoTransferId	
+string
+The unique transaction number assigned by the Casino Operator
+
+balance	
+integer <int64>
+Player's current Casino Operator available balance
+
+errorMessage	
+string
+Sent by operator
+
+responseCodeReason	
+string
+Predefined (by MGS) code representing the request outcome
+
+401 Unauthorized Access
+Response Schema: application/json
+responseCodeReason	
+string
+userName and/or password not correct -> value WRONG_CREDENTIALS
+
+portalAction	
+object (PortalAction)
+Optional action/message provided by the Casino Operator to be displayed to the player.
+
+403 Forbidden
+Response Schema: application/json
+responseCodeReason	
+string
+Not enough money in Player's Wallet for the given transfer to be processed -> value INSUFFICIENT_FUNDS
+
+408 Request Timeout
+Response Schema: application/json
+responseCodeReason	
+null
+Failed to finish the processing of the request -> value null
+
+409 Conflict
+Response Schema: application/json
+responseCodeReason	
+null
+It is essential that the Casino Operator server identifies duplicate requests from Amusnet MGS -> value null
+
+balance	
+integer <int64>
+Player's current Casino Operator available balance
+
+portalAction	
+object (PortalAction)
+Optional action/message provided by the Casino Operator to be displayed to the player.
+
+5xx Internal Server Error
+Response Schema: application/json
+responseCodeReason	
+null
+Communication problem. Something went wrong and for sure the transfer is canceled/invalid in the Casino Operator system. This response code should be used also in case there is something wrong with the sent payload e.g. wrong playerId, wrong defenceCode, etcetera -> value null
+
+portalAction	
+object (PortalAction)
+Optional action/message provided by the Casino Operator to be displayed to the player.
+
+
+post
+/v1/buy-in/withdraw
+
+Request samples
+Payload
+
+Copy
+{
+"playerId": "string",
+"transferId": "string",
+"type": "string",
+"sourceId": 0,
+"amount": 0,
+"currency": "string",
+"portalCode": "string"
+}
+Response samples
+2004014034084095xx
+
+Copy
+{
+"casinoTransferId": "string",
+"balance": 0,
+"errorMessage": "string",
+"responseCodeReason": "string"
+}
+Buy-In deposit
+This method is used to refund back the funds to a player's wallet when a Buy-In Tournament is cancelled
+
+Authorizations:
+Native System Auth
+Request Body schema: application/json
+required
+playerId	
+string
+A Casino Operator's Player ID
+
+transferId	
+string
+The unique transaction number assigned by Amusnet MGS
+
+type	
+string
+Type of the feature, possible value TOURNAMENT
+
+sourceId	
+integer <int64>
+References where the award came from; Holds the ID for the Tournament
+
+amount	
+integer <int64>
+The Transfer amount in the respective Player's currency
+
+currency	
+string
+Currency the Player uses in the Casino Operator system; ISO 4217 standard
+
+portalCode	
+string
+Predefined constant that binds Portal and Currency, provided by Amusnet MGS system
+
+Responses
+200 Successful Buy-In deposit
+Response Schema: application/json
+casinoTransferId	
+string
+The unique transaction number assigned by the Casino Operator
+
+balance	
+integer <int64>
+Player's current Casino Operator available balance
+
+errorMessage	
+string
+Sent by operator
+
+responseCodeReason	
+string
+Predefined (by MGS) code representing the request outcome
+
+401 Unauthorized Access
+Response Schema: application/json
+responseCodeReason	
+string
+userName and/or password not correct -> value WRONG_CREDENTIALS
+
+portalAction	
+object (PortalAction)
+Optional action/message provided by the Casino Operator to be displayed to the player.
+
+408 Request Timeout
+Response Schema: application/json
+responseCodeReason	
+null
+Failed to finish the processing of the request -> value null
+
+409 Conflict
+Response Schema: application/json
+responseCodeReason	
+null
+It is essential that the Casino Operator server identifies duplicate requests from Amusnet MGS -> value null
+
+balance	
+integer <int64>
+Player's current Casino Operator available balance
+
+portalAction	
+object (PortalAction)
+Optional action/message provided by the Casino Operator to be displayed to the player.
+
+5xx Internal Server Error
+Response Schema: application/json
+responseCodeReason	
+null
+Communication problem. Something went wrong and for sure the transfer is canceled/invalid in the Casino Operator system. This response code should be used also in case there is something wrong with the sent payload e.g. wrong playerId, wrong defenceCode, etcetera -> value null
+
+portalAction	
+object (PortalAction)
+Optional action/message provided by the Casino Operator to be displayed to the player.
+
+
+post
+/v1/buy-in/deposit
+
+Request samples
+Payload
+
+Copy
+{
+"playerId": "string",
+"transferId": "string",
+"type": "string",
+"sourceId": 0,
+"amount": 0,
+"currency": "string",
+"portalCode": "string"
+}
+Response samples
+2004014084095xx
+
+Copy
+{
+"casinoTransferId": "string",
+"balance": 0,
+"errorMessage": "string",
+"responseCodeReason": "string"
+}
+Award deposit
+Awards a deposit to a player. Use this non-sequenced method to integrate Cash Bomb Jackpots, Tournaments, and other promotional tools.
+
+Authorizations:
+Native System Auth
+Request Body schema: application/json
+required
+playerId
+required
+string
+A Casino Operator's Player ID
+
+transferId
+required
+string
+The unique transaction number assigned by Amusnet MGS
+
+awardType
+required
+string
+Indicates the category of the promotional award. Supported types include:
+
+TOURNAMENT: An award granted for participation or ranking in a Tournament.
+CASH_BOMB: An award granted from the Cash Bomb Jackpot feature.
+amount
+required
+integer <int64>
+The sum of money in the respective player's currency to be transferred
+
+currency
+required
+string
+Currency the player uses in the casino operator system; ISO 4217 standard
+
+portalCode
+required
+string
+Predefined constant that binds Portal and Currency, provided by the Amusnet MGS system
+
+awardDetails
+required
+object
+Provides a clear classification of the award
+
+sourceId
+required
+string
+References where the award came from; Holds the ID for a Cash Bomb Jackpot or a Tournament
+
+gameId
+required
+string
+Identifies the specific game associated with the award
+
+gameNumber
+required
+string
+Identifies the specific qualifying game round
+
+Responses
+200 Successful AwardDeposit
+Response Schema: application/json
+casinoTransferId	
+string
+The unique transaction number assigned by the casino operator
+
+balance	
+integer <int64>
+Player's current Casino Operator available balance
+
+errorMessage	
+string
+Sent by operator
+
+responseCodeReason	
+string
+Predefined (by MGS) code representing the request outcome
+
+401 Unauthorized Access
+Response Schema: application/json
+responseCodeReason	
+string
+userName and/or password not correct -> value WRONG_CREDENTIALS
+
+portalAction	
+object (PortalAction)
+Optional action/message provided by the Casino Operator to be displayed to the player.
+
+408 Request Timeout
+Response Schema: application/json
+responseCodeReason	
+null
+Failed to finish the processing of the request -> value null
+
+5xx Internal Server Error
+Response Schema: application/json
+responseCodeReason	
+null
+Communication problem. Something went wrong and for sure the transfer is canceled/invalid in the Casino Operator system. This response code should be used also in case there is something wrong with the sent payload e.g. wrong playerId, wrong defenceCode, etcetera -> value null
+
+portalAction	
+object (PortalAction)
+Optional action/message provided by the Casino Operator to be displayed to the player.
+
+
+post
+/v1/award-deposit
+
+Request samples
+Payload
+
+Copy
+Expand allCollapse all
+{
+"playerId": "string",
+"transferId": "string",
+"awardType": "string",
+"amount": 0,
+"currency": "string",
+"portalCode": "string",
+"awardDetails": {
+"type": "BONUS_MONEY",
+"info": "string"
+},
+"sourceId": "string",
+"gameId": "string",
+"gameNumber": "string"
+}
+Response samples
+2004014085xx
+
+Copy
+{
+"casinoTransferId": "string",
+"balance": 0,
+"errorMessage": "string",
+"responseCodeReason": "string"
+}
+Event Notification
+This method is used to notify the Casino Operator about specific bonus events, such as when a bonus bundle expires or completes (e.g., COUNTDOWN_FREE_SPIN_END).
+
+Authorizations:
+Native System Auth
+Request Body schema: application/json
+required
+id
+required
+string
+Unique identifier of the event, typically the bundleId.
+
+type
+required
+string
+Value: "COUNTDOWN_FREE_SPIN_END"
+Identifies the category of the bonus event. Supported values:
+
+COUNTDOWN_FREE_SPIN_END: Signals the end of a countdown free spin bundle.
+timestamp
+required
+string <date-time>
+The date and time when the event occurred.
+
+playerId
+required
+string
+The player's unique ID in the Casino Operator's system.
+
+gameId
+required
+integer
+Game Identification Number (GIN) associated with the event.
+
+Responses
+200 Successful Event Notification
+Response Schema: application/json
+responseCodeReason
+required
+string
+Predefined (by MGS) code representing the request outcome
+
+seamlessResponseCode
+required
+string
+Predefined (by MGS) code representing the request outcome
+
+errorMessage	
+string
+Sent by operator
+
+401 Unauthorized Access
+Response Schema: application/json
+responseCodeReason	
+string
+userName and/or password not correct -> value WRONG_CREDENTIALS
+
+portalAction	
+object (PortalAction)
+Optional action/message provided by the Casino Operator to be displayed to the player.
+
+408 Request Timeout
+Response Schema: application/json
+responseCodeReason	
+null
+Failed to finish the processing of the request -> value null
+
+409 Conflict
+Response Schema: application/json
+responseCodeReason	
+null
+It is essential that the Casino Operator server identifies duplicate requests from Amusnet MGS -> value null
+
+balance	
+integer <int64>
+Player's current Casino Operator available balance
+
+portalAction	
+object (PortalAction)
+Optional action/message provided by the Casino Operator to be displayed to the player.
+
+5xx Internal Server Error
+Response Schema: application/json
+responseCodeReason	
+null
+Communication problem. Something went wrong and for sure the transfer is canceled/invalid in the Casino Operator system. This response code should be used also in case there is something wrong with the sent payload e.g. wrong playerId, wrong defenceCode, etcetera -> value null
+
+portalAction	
+object (PortalAction)
+Optional action/message provided by the Casino Operator to be displayed to the player.
+
+Game History
+Description
+Amusnet supports the functionality via which the Game History for each spin is provided directly to the operator. During this operation, the following parameters are required to be sent by the Casino Operator (CO) system to the Amusnet Reporting system
+
+get-game-history
+Retrieve the game spin outcome for a specific spin
+
+Authorizations:
+X-Api-Token
+query Parameters
+transferId
+required
+string
+The transferId which may be found in every request send by the Amusnet MGS system
+
+Responses
+200 Success
+Response Schema: application/json
+gin	
+integer <int64>
+Unique Game ID provided by Amusnet MGS system
+
+gameName	
+string
+Unique Game Name provided by Amusnet MGS system
+
+gameNumber	
+string
+Amusnet MGS unique Bet ID (it can be associated to more than one Transfer ID)
+
+betAmount	
+number
+Amount bet within the specific game round
+
+totalBetAmount	
+number
+Total Amont bet for the Player's session
+
+totalWinAmount	
+number
+Total Amount won for the Player's session
+
+winAmount	
+number
+Amount won within the specific game round
+
+choiceWinAmount	
+number
+mysteryWinAmount	
+number
+mysteryWheelWinAmount	
+number
+currency	
+string
+Currency the Player uses in the Casino Operator system; ISO 4217 standard
+
+finished	
+boolean
+startTimestamp	
+string
+Date and time the specific game round began (UTC time zone)
+
+endTimestamp	
+string
+Date and time the specific game round ended (UTC time zone)
+
+status	
+string
+overflow	
+integer <int64>
+isMysteryWin	
+boolean
+bombJackpotWinAmount	
+number
+Amount won from the Cash Bomb Jackpot game
+
+outcome	
+object (Outcome)
+Outcome from the specific game round
+
+rounds	
+Array of objects
+multiplayerRounds	
+Array of objects (GameRoundDetails)
+gambles	
+object (Gambles)
+Information on the Player's Gambles
+
+freeSpins	
+object (FreeSpins)
+Information on Player's free spins
+
+respins	
+object (Respins)
+pickMultipliers	
+Array of objects (PickMultiplier)
+jackpotTransfer	
+boolean
+coinSpins	
+Array of objects (CoinSpins)
+gameClientVersion	
+string
+gameBackendVersion	
+string
+gameType	
+string
+supportsRandomPresents	
+boolean
+combos	
+object (Combos)
+collectables	
+object (Collectables)
+jackpotWin	
+object (JackpotWin)
+The amount won from the respective Jackpot
+
+maxExposure	
+object (MaxExposure)
+Largest stake a player may reach
+
+401 Unauthorized access
+404 Not found
+
+
+Jackpots
+There are four GINs representing our Jackpot games which depending on the Casino Operator set up may be sent once a Jackpot game is over -> 996, 999, 998, 8888
+
+Jackpot Banner Component¶
+Implementing Amusnet MGS Online Jackpot Banner and requesting current values from the Amusnet (MGS) system requires a one-time development effort by the Casino Operator software providers.
+
+Amusnet MGS is providing a ready-to-use HTML component for the Jackpot Banner which can be found as follows:
+
+Jackpot Cards HTML components
+Golden Coins Link HTML components
+Egypt Quest HTML components
+In order to be able to use this component, the following steps should be executed:
+
+Step 1: Extract all files from zip file
+Step 2: Open index.html with preferred text editor
+Step 3: In the <body> tag there is already an example of how to use and configure Amusnet MGS Jackpot banner
+The <div> id must be defined as id="com-egt-jackpot-html-jackpotBanner"
+com-egt-jackpot-styles.css, located in css/com-egt-jackpot-styles.css and com-egt-jackpot-utilities.js located in js/com-egt-jackpot-utilities.js must be included
+jquery-3.7.1.min.js must be included
+Step 4: Create object with EgtJackpotComponent class with following configuration properties:
+
+
+jackpot = new EgtJackpotComponent(
+    {
+        URL: 'https://{amusnet-mgs-domain}/jackpot-stats/statistics/{UID}',lang: 'en', resourceURL: '', redirectURL: '', maxDigits: [6, 7, 8, 9], requestInterval:[5000, 5000, 15000, 30000, 60000, 180000], xtra_small: 300, small: 650, medium: 1050, large: 1400
+    }
+);
+Key / value pairs¶
+URL - Jackpot feed URL provided by Amusnet to the Casino Operator
+lang - specified the language of the jackpotComponent described in Languages XML
+resourceURL - path to the Amusnet Jackpot Banner if it is not located in the default assets folder
+redirectURL - URL to redirect to once the banner is clicked
+maxDigits - the maximum amount of digits that will be shown on each banner box. e.g. Clubs will show only 6 digits , Diamonds Will show 7 digits etc.
+requestInterval - request delay in MS. After 180000 is reached each following request will be sent with that delay
+xtra_small - Breakpoint width for extra small devices - e.g. old phones, with maximum width of 240px
+small - Breakpoint width for small devices - for modern phones
+medium - Breakpoint width for medium devices - for tablets and small laptop screens
+large - Breakpoint width for large devices - for laptops and big monitors
+
+
+Jackpot Feed
+Description
+This service is providing the detailed Jackpot values in that are valid for a specific Casino Operator from the Amusnet MGS system. The request from Player's Browser to Amusnet MGS endpoint should be initiated not more often than every 5 seconds, due to the caching specifics of the endpoint itself.
+
+Jackpot Statistics
+Retrieve the statistics for all jackpots associated to a portal
+
+path Parameters
+portalUid
+required
+integer <int64>
+Predefined constant generated by the Amusnet MGS system, associated with the Casino Operator's system
+
+query Parameters
+currency	
+string or null
+The ISO currency code (e.g., EUR, USD) in which the Jackpot values should be returned. This must be a currency supported by the Operator's system.
+
+winnersCount	
+integer or null <int32> [ 0 .. 9223372036854776000 ]
+The maximum number of winners to include in each category. If left empty or set to 0, the system may apply a default limit.
+
+jackpotTypes	
+Array of strings or null (JackpotType)
+Enum: "MLM_PLUS" "CASH_BOMB" "GOLDEN_COINS_LINK" "EQ"
+Optional filter to return data only for specific jackpot types. You can request multiple types by providing a comma-separated list. Example: ?jackpotTypes=GOLDEN_COINS_LINK.
+
+Responses
+200 Successful response
+Response Schema: application/json
+jackpotCards	
+object (MlmJackpotStatistics)
+type of the Jackpot
+
+goldenCoinsLink	
+object (LinkJackpotStatistics)
+type of the Jackpot
+
+egyptQuest	
+object (EqJackpotStatistics)
+type of the Jackpot
+
+cashBomb	
+object (BombJackpotStatistics)
+type of the Jackpot
+
+Bonus Platform
+Amusnet Bonus Platform provides Casino Operator with the option to award bonuses to their players. In order to use Amusnet Bonus Platform, a Casino Operator and Amusnet should perform integration of the additional feature API.
+
+Important Note
+
+Implementing the Bonus Platform does not automatically make this functionality available for Casino Operator. Amusnet MGS must also develop it's part of the integration and set all required configurations.
+
+Bonuses can be played on any bet level and do not influence the game's Return to Player (RTP) percentage.
+
+Any game play made with Free Spins is not included in the total bet and total win made on Amusnet games for Casino Operator.
+
+The optional parameters that serve Amusnet Bonus System integration can be checked in the WithdrawAndDeposit, Withdraw and Deposit requests. They are within the key bonusData and if the player has been awarded with bonus, this tag will be present in the requests until player exhaust the bonus or Promotion has been expired. Please be informed that for players who do not have bonuses, Amusnet Multi Game server will send requests without the above-mentioned optional parameters.
+
+Terms and Conditions¶
+Amusnet MGS should enable Bonus Platform functionality per operator (sub-system, skin) to kick-off Bonus Platform integration activities
+Multiple Promotions per Game may be created and run at the same time
+A Promotion may support more than one currency
+Important Note
+
+Once a Promotion reaches its Start Date, it is no longer part of the forthcoming Promotions. When a Promotion with Start Date in the future is terminated, it is not interpreted as forthcoming.
+
+Bonus Platform integration endpoint:
+
+
+https://staging-pod.games.amusnet.io/bonus-platform/operator/v1
+Bonus Platform Prod endpoint:
+
+
+https://{amusnet-mgs-domain}/bonus-platform/operator/v1
+Amusnet reserves the right to choose which games are eligible for bonus.
+Amusnet reserves the right to terminate a Promotion if any suspicious behaviour is detected.
+
+
+Bonus Platform API
+Amusnet Bonus System Documentation
+Award Manual Bonus
+This method is used whenever the Casino Operator would like to award Bonus directly to specified Player without creating a tracked Promotion.
+
+Authorizations:
+ApiKeyAuth
+Request Body schema: application/json
+required
+The settings needed for awarding a bonus to a group of players.
+
+id
+required
+string <uuid>
+The idempotency key of the request. Must be a UUID represented by a standard 36-char string.
+
+playerIds
+required
+Array of strings [ 1 .. 5000 ] items [ items [ 1 .. 64 ] characters ]
+The identifiers of the players to be awarded this bonus. A maximum of 5 000 (five thousand) players may be awarded per request. If the total number of players exceeds this limit, split the request into multiple batches.
+
+skinName
+required
+string [ 1 .. 128 ] characters
+The name of the players' skin.
+
+amount	
+integer <int64> > 0
+The quantity of bonuses being awarded per player. Constraints: The parameter is required for all award types except COUNTDOWN_FREE_SPIN, for which it may be omitted or set to null. The parameter must be set to 1 for FREE_BUY_BONUS.
+
+type
+required
+string
+Enum: "FREE_SPIN" "FREE_BUY_BONUS" "GOLDEN_CHIP" "COUNTDOWN_FREE_SPIN"
+The type of the bonuses being awarded.
+
+typeConfiguration	
+object
+Any additional configuration details needed for the specified bonus type.
+
+betValueStrategy
+required
+string
+Enum: "MINIMUM" "EXACT" "CLOSEST" "CLOSEST_LOWER" "CLOSEST_HIGHER"
+The strategy used for determining the bet value.
+
+betValue	
+number > 0
+The value of the bonuses awarded. The parameter may be omitted if the Bet Value Strategy used is MINIMUM. For any other Bet Value Strategy, the parameter is required.
+
+currency
+required
+string = 3 characters
+The currency code for the bonuses, defined by the three-letter currency code as per ISO-4217.
+
+games
+required
+Array of integers <int32> [ 1 .. 1000 ] items [ items <int32 > > 0 ]
+The unique identifiers of the games eligible for the bonuses.
+
+claimByStrategy	
+string
+Enum: "RELATIVE_TO_AWARD" "CUSTOM"
+The strategy for determining the deadline by which the bonuses must be claimed.
+
+claimByMinutes	
+integer <int64> [ 0 .. 1440000 ]
+The number of minutes the bonuses are available to be claimed after being awarded. Required if Award Manual Bonuses Claim By Strategy is RELATIVE_TO_AWARD.
+
+claimByDateTime	
+string <date-time>
+The deadline by which bonuses must be claimed. (UTC time zone)
+
+expirationStrategy	
+string
+Enum: "RELATIVE_TO_CLAIM" "CUSTOM"
+The strategy for determining when the bonuses will expire.
+
+expirationMinutes	
+integer <int64> ( 0 .. 1440000 ]
+The number of minutes the bonus is valid for after being claimed. Required if expirationStrategy is RELATIVE_TO_CLAIM.
+
+expirationDateTime	
+string <date-time>
+The exact date when the bonus will expire. Required if expirationStrategy is CUSTOM.
+
+Responses
+200 Bonuses awarded successfully.
+Response Schema: application/json
+Array 
+id
+required
+string
+The unique identifier of the bonus.
+
+groupId
+required
+string
+The unique identifier of the group this bonus is associated with. If the bonus is awarded manually, the groupID represents the 'bundleID' assigned to that specific set of bonuses; if the bonus is linked to a promotion, the groupID matches the 'promotionID'.
+
+sourceId	
+string
+The unique identifier of the associated source promotional tool that awarded the bonus (example Promotion ID or Tournament ID), if applicable.'.
+
+groupType
+required
+string
+Enum: "PROMOTION" "MANUAL"
+The type of the group this bonus belongs to.
+
+playerId
+required
+string
+The identifier of the player that received this bonus.
+
+type
+required
+string
+Enum: "FREE_SPIN" "FREE_BUY_BONUS" "LUCKY_SPIN" "GOLDEN_CHIP" "COUNTDOWN_FREE_SPIN"
+The type of the bonus awarded.
+
+typeConfiguration	
+object
+Any additional configuration details needed for the specified bonus type.
+
+awardedAmount	
+integer <int64>
+The total amount awarded. Constraint: The parameter is provided for all award types except COUNTDOWN_FREE_SPIN, for which it is omitted or set to null.
+
+consumedAmount
+required
+integer <int64>
+The amount that has already been consumed.
+
+revertedAmount
+required
+integer <int64>
+The amount that has been reverted.
+
+remainingAmount	
+integer <int64>
+The remaining amount available to be consumed. Constraint: The parameter is provided for all award types except COUNTDOWN_FREE_SPIN, for which it is omitted or set to null.
+
+state
+required
+string
+Enum: "AWARDED" "CLAIMED" "IN_PLAY" "CONSUMED" "REVERTED" "UNCLAIMED" "EXPIRED" "DECLINED" "REVOKED"
+The current state of the bonus.
+
+claimByStrategy
+required
+string
+Enum: "RELATIVE_TO_AWARD" "CUSTOM"
+The strategy for determining the deadline by which the bonuses must be claimed.
+
+claimByMinutes	
+integer <int64> [ 0 .. 1440000 ]
+The number of minutes the bonuses are available to be claimed after being awarded. Will be set when the claimByStrategy is RELATIVE_TO_AWARD.
+
+claimByDateTime
+required
+string <date-time>
+The deadline by which the bonus must be claimed. (UTC time zone)
+
+expirationStrategy
+required
+string
+Enum: "RELATIVE_TO_CLAIM" "CUSTOM"
+The strategy for determining when the bonuses will expire.
+
+expirationMinutes	
+integer <int64> ( 0 .. 1440000 ]
+The number of minutes the bonus is valid for after being claimed. Will be set when the expirationStrategy is RELATIVE_TO_CLAIM.
+
+expirationDateTime	
+string <date-time>
+The deadline by which the bonus, once claimed, must be used. (UTC time zone)
+
+games
+required
+Array of integers <int32> [ items <int32 > ]
+The unique identifiers of the games eligible for the bonuses.
+
+inPlayGame	
+integer <int32>
+The unique identifier of the game in which the bonus is currently being played, if applicable.
+
+portals
+required
+Array of objects (Member)
+The portals where this bonus is available.
+
+currency
+required
+string
+The currency code for the bonuses, defined by the three-letter currency code as per ISO-4217.
+
+betValueStrategy
+required
+string
+Enum: "MINIMUM" "EXACT" "CLOSEST" "CLOSEST_LOWER" "CLOSEST_HIGHER"
+The strategy used for determining the bet value.
+
+betValue	
+number
+The value of the bonus. The parameter may be omitted if the Bet Value Strategy used is MINIMUM. For any other Bet Value Strategy, the parameter is required.
+
+400 Bad request due to validation errors.
+Response Schema: application/json
+message	
+string
+details	
+Array of objects (ErrorResponse.ErrorResponseDetails)
+errorCode	
+string
+401 Unauthorized access.
+Response Schema: application/json
+message	
+string
+details	
+Array of objects (ErrorResponse.ErrorResponseDetails)
+errorCode	
+string
+403 Insufficient permissions.
+Response Schema: application/json
+message	
+string
+details	
+Array of objects (ErrorResponse.ErrorResponseDetails)
+errorCode	
+string
+5xx Internal server error.
+
+post
+/bonuses
+
+Request samples
+Payload
+
+Copy
+Expand allCollapse all
+{
+"id": "11560041-76b0-4d81-8f0e-d34b1bd77175",
+"playerIds": [
+"Player A",
+"Player B"
+],
+"skinName": "Skin Name",
+"amount": 5,
+"type": "FREE_SPIN",
+"betValueStrategy": "EXACT",
+"betValue": "0.15",
+"currency": "EUR",
+"games": [
+529,
+530
+],
+"claimByDateTime": "2024-12-31T23:59:59Z",
+"expirationMinutes": 43200
+}
+Response samples
+200400401403
+
+Copy
+Expand allCollapse all
+[
+{
+"id": "641228496479505084",
+"groupId": "641228495296711302",
+"groupType": "MANUAL",
+"playerId": "Player A",
+"type": "FREE_SPIN",
+"awardedAmount": 5,
+"consumedAmount": 1,
+"remainingAmount": 4,
+"state": "IN_PLAY",
+"claimByDateTime": "2024-12-31T23:59:59Z",
+"expirationDateTime": "2024-12-31T23:59:59Z",
+"games": [],
+"inPlayGame": 530,
+"portals": [],
+"currency": "EUR",
+"betValueStrategy": "EXACT",
+"betValue": "0.15"
+}
+]
+Retrieve a Bonus
+Retrieve a specific bonus using its unique identifier.
+
+Authorizations:
+ApiKeyAuth
+path Parameters
+bonusId
+required
+string
+Unique identifier of the bonus.
+
+Responses
+200 Bonus retrieved successfully.
+401 Unauthorized access.
+403 Insufficient permissions.
+404 Bonus not found.
+5xx Internal server error.
+
+get
+/bonuses/{bonusId}
+
+Response samples
+200401403404
+
+Copy
+Expand allCollapse all
+{
+"id": "641228496479505084",
+"groupId": "641228495296711302",
+"groupType": "MANUAL",
+"playerId": "Player A",
+"type": "FREE_SPIN",
+"awardedAmount": 5,
+"consumedAmount": 1,
+"remainingAmount": 4,
+"state": "IN_PLAY",
+"claimByDateTime": "2024-12-31T23:59:59Z",
+"expirationDateTime": "2024-12-31T23:59:59Z",
+"games": [
+529,
+530
+],
+"inPlayGame": 530,
+"portals": [
+{},
+{}
+],
+"currency": "EUR",
+"betValueStrategy": "EXACT",
+"betValue": "0.15"
+}
+Revert an amount from a given Bonus
+Revert an amount from a given bonus.
+
+Authorizations:
+ApiKeyAuth
+path Parameters
+bonusId
+required
+string
+Unique identifier of the bonus.
+
+Request Body schema: application/json
+required
+The settings needed for reverting an amount from a bonus.
+
+id
+required
+string <uuid>
+The idempotency key of the request. Must be a UUID represented by a standard 36-char string.
+
+amount	
+integer <int64> > 0
+The amount being reverted from the bonus, defaults to the remaining amount if not provided. Constraints: The parameter is required for all award types except COUNTDOWN_FREE_SPIN, for which it may be omitted or set to null.
+
+reason	
+string [ 1 .. 128 ] characters
+The optional reason for reverting the bonus.
+
+Responses
+200 Bonus amount reverted successfully.
+Response Schema: application/json
+id
+required
+string
+The unique identifier of the bonus.
+
+groupId
+required
+string
+The unique identifier of the group this bonus is associated with. If the bonus is awarded manually, the groupID represents the 'bundleID' assigned to that specific set of bonuses; if the bonus is linked to a promotion, the groupID matches the 'promotionID'.
+
+sourceId	
+string
+The unique identifier of the associated source promotional tool that awarded the bonus (example Promotion ID or Tournament ID), if applicable.'.
+
+groupType
+required
+string
+Enum: "PROMOTION" "MANUAL"
+The type of the group this bonus belongs to.
+
+playerId
+required
+string
+The identifier of the player that received this bonus.
+
+type
+required
+string
+Enum: "FREE_SPIN" "FREE_BUY_BONUS" "LUCKY_SPIN" "GOLDEN_CHIP" "COUNTDOWN_FREE_SPIN"
+The type of the bonus awarded.
+
+typeConfiguration	
+object
+Any additional configuration details needed for the specified bonus type.
+
+awardedAmount	
+integer <int64>
+The total amount awarded. Constraint: The parameter is provided for all award types except COUNTDOWN_FREE_SPIN, for which it is omitted or set to null.
+
+consumedAmount
+required
+integer <int64>
+The amount that has already been consumed.
+
+revertedAmount
+required
+integer <int64>
+The amount that has been reverted.
+
+remainingAmount	
+integer <int64>
+The remaining amount available to be consumed. Constraint: The parameter is provided for all award types except COUNTDOWN_FREE_SPIN, for which it is omitted or set to null.
+
+state
+required
+string
+Enum: "AWARDED" "CLAIMED" "IN_PLAY" "CONSUMED" "REVERTED" "UNCLAIMED" "EXPIRED" "DECLINED" "REVOKED"
+The current state of the bonus.
+
+claimByStrategy
+required
+string
+Enum: "RELATIVE_TO_AWARD" "CUSTOM"
+The strategy for determining the deadline by which the bonuses must be claimed.
+
+claimByMinutes	
+integer <int64> [ 0 .. 1440000 ]
+The number of minutes the bonuses are available to be claimed after being awarded. Will be set when the claimByStrategy is RELATIVE_TO_AWARD.
+
+claimByDateTime
+required
+string <date-time>
+The deadline by which the bonus must be claimed. (UTC time zone)
+
+expirationStrategy
+required
+string
+Enum: "RELATIVE_TO_CLAIM" "CUSTOM"
+The strategy for determining when the bonuses will expire.
+
+expirationMinutes	
+integer <int64> ( 0 .. 1440000 ]
+The number of minutes the bonus is valid for after being claimed. Will be set when the expirationStrategy is RELATIVE_TO_CLAIM.
+
+expirationDateTime	
+string <date-time>
+The deadline by which the bonus, once claimed, must be used. (UTC time zone)
+
+games
+required
+Array of integers <int32> [ items <int32 > ]
+The unique identifiers of the games eligible for the bonuses.
+
+inPlayGame	
+integer <int32>
+The unique identifier of the game in which the bonus is currently being played, if applicable.
+
+portals
+required
+Array of objects (Member)
+The portals where this bonus is available.
+
+currency
+required
+string
+The currency code for the bonuses, defined by the three-letter currency code as per ISO-4217.
+
+betValueStrategy
+required
+string
+Enum: "MINIMUM" "EXACT" "CLOSEST" "CLOSEST_LOWER" "CLOSEST_HIGHER"
+The strategy used for determining the bet value.
+
+betValue	
+number
+The value of the bonus. The parameter may be omitted if the Bet Value Strategy used is MINIMUM. For any other Bet Value Strategy, the parameter is required.
+
+400 Bad request due to validation errors.
+Response Schema: application/json
+message	
+string
+details	
+Array of objects (ErrorResponse.ErrorResponseDetails)
+errorCode	
+string
+401 Unauthorized access.
+Response Schema: application/json
+message	
+string
+details	
+Array of objects (ErrorResponse.ErrorResponseDetails)
+errorCode	
+string
+403 Insufficient permissions.
+Response Schema: application/json
+message	
+string
+details	
+Array of objects (ErrorResponse.ErrorResponseDetails)
+errorCode	
+string
+404 Bonus not found.
+Response Schema: application/json
+message	
+string
+details	
+Array of objects (ErrorResponse.ErrorResponseDetails)
+errorCode	
+string
+409 Conflict occurred because the bonus is in an invalid state.
+Response Schema: application/json
+message	
+string
+details	
+Array of objects (ErrorResponse.ErrorResponseDetails)
+errorCode	
+string
+5xx Internal server error.
+
+post
+/bonuses/{bonusId}/revert
+
+Request samples
+Payload
+
+Copy
+{
+"id": "11560041-76b0-4d81-8f0e-d34b1bd77175",
+"amount": 5,
+"reason": "Revert Reason"
+}
+Response samples
+200400401403404409
+
+Copy
+Expand allCollapse all
+{
+"id": "641228496479505084",
+"groupId": "641228495296711302",
+"groupType": "MANUAL",
+"playerId": "Player A",
+"type": "FREE_SPIN",
+"awardedAmount": 5,
+"consumedAmount": 1,
+"remainingAmount": 4,
+"state": "IN_PLAY",
+"claimByDateTime": "2024-12-31T23:59:59Z",
+"expirationDateTime": "2024-12-31T23:59:59Z",
+"games": [
+529,
+530
+],
+"inPlayGame": 530,
+"portals": [
+{},
+{}
+],
+"currency": "EUR",
+"betValueStrategy": "EXACT",
+"betValue": "0.15"
+}
+Create Promotion
+This method is used whenever the Casino Operator would like to create a Promotion.
+
+Authorizations:
+ApiKeyAuth
+Request Body schema: application/json
+required
+The settings needed for creating a new promotion.
+
+id
+required
+string <uuid>
+The idempotency key of the request. Must be a UUID represented by a standard 36-char string.
+
+name
+required
+string [ 1 .. 128 ] characters
+The name of the promotion.
+
+description	
+string <= 512 characters
+An optional description of the promotion.
+
+currency
+required
+string = 3 characters
+The main currency code for the promotion, defined by the three-letter currency code as per ISO-4217.
+
+additionalCurrencies
+required
+Array of strings <= 200 items [ items = 3 characters ]
+Additional currencies supported by the promotion, defined by the three-letter currency code as per ISO-4217.
+
+triggerType
+required
+string
+Enum: "NONE" "START_DATE" "CHANCE_PER_STAKE"
+The method by which bonuses are awarded in the promotion.
+
+triggerConfiguration	
+object
+Any additional configuration details needed for the specified trigger type.
+
+publishDateTime	
+string <date-time>
+The publishing date and time of the promotion.. (UTC time zone)
+
+startDateTime	
+string <date-time>
+The start date and time of the promotion. (UTC time zone)
+
+endDateTime	
+string <date-time>
+The end date and time of the promotion. (UTC time zone)
+
+displayUntil	
+string <date-time>
+The display until date and time after the end date of the promotion. (UTC time zone)
+
+livePeriods	
+Array of objects (PromotionLivePeriod) [ 1 .. 100 ] items
+Defines a list of time windows during which the promotion is live.
+
+skinPlayers
+required
+Array of objects (CreateSkinPlayers) [ 1 .. 50 ] items
+Defines player eligibility for the promotion segregated by skin.
+
+games
+required
+Array of integers <int32> [ 1 .. 1000 ] items [ items <int32 > > 0 ]
+The unique identifiers of the games eligible for the bonuses of this promotion.
+
+includeBonusMoney	
+boolean
+Indicates whether bonus money transfers are eligible to be processed by the promotion. If the parameter is not provided, it automatically defaults to true.
+
+bonusType
+required
+string
+Enum: "FREE_SPIN" "FREE_BUY_BONUS" "LUCKY_SPIN" "GOLDEN_CHIP" "COUNTDOWN_FREE_SPIN"
+The type of the bonuses awarded from this promotion.
+
+bonusTypeConfiguration	
+object
+Any additional configuration details needed for the specified bonus type.
+
+bonusClaimByStrategy	
+string
+Enum: "RELATIVE_TO_AWARD" "CUSTOM"
+The strategy for determining the deadline by which the bonuses awarded from this promotion must be claimed, if applicable.
+
+bonusClaimByMinutes	
+integer <int64> [ 0 .. 1440000 ]
+The number of minutes the bonuses awarded from this promotion are available to be claimed after being awarded. Required if bonusClaimByStrategy is RELATIVE_TO_AWARD.
+
+bonusClaimByDateTime	
+any <date-time>
+The deadline by which the bonuses awarded from this promotion must be claimed. Required if bonusClaimByStrategy is CUSTOM.
+
+bonusExpirationStrategy	
+string
+Enum: "RELATIVE_TO_CLAIM" "CUSTOM"
+The strategy for determining when bonuses awarded from this promotion will expire.
+
+bonusExpirationMinutes	
+integer <int64> ( 0 .. 1440000 ]
+The number of minutes a bonus awarded from this promotion will be valid for after being claimed. Required if bonusExpirationStrategy is RELATIVE_TO_CLAIM.
+
+bonusExpirationDateTime	
+string <date-time>
+The exact date when the bonuses awarded from this promotion will expire. Required if bonusExpirationStrategy is CUSTOM.
+
+bonusSets
+required
+Array of objects (CreateBonusSet) [ 1 .. 5000 ] items
+Defines distinct templates that specify the characteristics and limits of the bonuses awarded from this configuration.
+
+portalNames
+required
+Array of strings [ 1 .. 50 ] items [ items [ 1 .. 128 ] characters ]
+The names of the portals participating in the promotion.
+
+Responses
+200 Promotion created successfully.
+Response Schema: application/json
+id
+required
+string
+The unique identifier of the promotion.
+
+name
+required
+string
+The name of the promotion.
+
+description	
+string
+An optional description of the promotion.
+
+currency
+required
+string
+The main currency code for the promotion, defined by the three-letter currency code as per ISO-4217.
+
+additionalCurrencies
+required
+Array of strings
+Additional currencies supported by the promotion, defined by the three-letter currency code as per ISO-4217.
+
+triggerType
+required
+string
+Enum: "NONE" "START_DATE" "CHANCE_PER_STAKE"
+The method by which bonuses are awarded in the promotion.
+
+triggerConfiguration	
+object
+Any additional configuration details needed for the specified trigger type.
+
+state
+required
+string
+Enum: "CREATED" "LIVE" "CANCELLED" "EXHAUSTED" "PAUSED" "FINISHED" "COMPLETED"
+The current state of the promotion.
+
+publishDateTime	
+string <date-time>
+The publishing date and time of the promotion. (UTC time zone)
+
+startDateTime
+required
+string <date-time>
+The start date and time of the promotion. (UTC time zone)
+
+endDateTime
+required
+string <date-time>
+The end date and time of the promotion. (UTC time zone)
+
+displayUntil	
+string <date-time>
+The display until date and time after the end date of the promotion. (UTC time zone)
+
+cancellationReason	
+string
+Reason for the promotion's cancellation, if applicable.
+
+games
+required
+Array of integers <int32> [ items <int32 > ]
+The unique identifiers of the games eligible for the bonuses of this promotion.
+
+includeBonusMoney	
+boolean
+Indicates whether bonus money transfers are eligible to be processed by the promotion. If the parameter is not provided, it automatically defaults to true.
+
+bonusType
+required
+string
+Enum: "FREE_SPIN" "FREE_BUY_BONUS" "LUCKY_SPIN" "GOLDEN_CHIP" "COUNTDOWN_FREE_SPIN"
+The type of the bonuses awarded from promotion.
+
+bonusTypeConfiguration	
+object
+Any additional configuration details needed for the specified bonus type.
+
+bonusClaimByStrategy	
+string
+Enum: "RELATIVE_TO_AWARD" "CUSTOM"
+The strategy for determining the deadline by which the bonuses awarded from this promotion must be claimed, if applicable.
+
+bonusClaimByMinutes	
+integer <int64> [ 0 .. 1440000 ]
+The number of minutes the bonuses awarded from this promotion are available to be claimed after being awarded. Will be set when the bonusClaimByStrategy is RELATIVE_TO_AWARD.
+
+bonusClaimByDateTime	
+string <date-time>
+The deadline by which the bonuses awarded from this promotion must be claimed. Will be set when the bonusClaimByStrategy is CUSTOM.
+
+bonusExpirationStrategy	
+string
+Enum: "RELATIVE_TO_CLAIM" "CUSTOM"
+The strategy for determining when bonuses awarded from this promotion will expire.
+
+bonusExpirationMinutes	
+integer <int64> ( 0 .. 1440000 ]
+The number of minutes a bonus awarded from this promotion will be valid for after being claimed. Will be set when the bonusExpirationStrategy is RELATIVE_TO_CLAIM.
+
+bonusExpirationDateTime	
+string <date-time>
+The exact date when the bonuses awarded from this promotion will expire. Will be set when the bonusExpirationStrategy is CUSTOM.
+
+portals
+required
+Array of objects (Member)
+The portals participating in the promotion.
+
+400 Bad request due to validation errors.
+Response Schema: application/json
+message	
+string
+details	
+Array of objects (ErrorResponse.ErrorResponseDetails)
+errorCode	
+string
+401 Unauthorized access.
+Response Schema: application/json
+message	
+string
+details	
+Array of objects (ErrorResponse.ErrorResponseDetails)
+errorCode	
+string
+403 Insufficient permissions.
+Response Schema: application/json
+message	
+string
+details	
+Array of objects (ErrorResponse.ErrorResponseDetails)
+errorCode	
+string
+5xx Internal server error.
+
+post
+/promotions
+
+Request samples
+Payload
+
+Copy
+Expand allCollapse all
+{
+"id": "07e8f184-0cfe-4770-9ea7-8d3ce6066b99",
+"name": "Promotion Name",
+"description": "Promotion Description",
+"currency": "EUR",
+"additionalCurrencies": [
+"USD"
+],
+"triggerType": "CHANCE_PER_STAKE",
+"triggerConfiguration": {
+"chancePerStakeConfigurations": []
+},
+"startDateTime": "2024-01-01T00:00:00Z",
+"endDateTime": "2024-12-31T23:59:59Z",
+"skinPlayers": [
+{}
+],
+"games": [
+529,
+530
+],
+"bonusType": "LUCKY_SPIN",
+"bonusExpirationMinutes": 43200,
+"bonusSets": [
+{},
+{}
+],
+"portalNames": [
+"Portal Name"
+]
+}
+Response samples
+200400401403
+
+Copy
+Expand allCollapse all
+{
+"id": "641652389480553803",
+"name": "Promotion Name",
+"description": "Promotion Description",
+"currency": "EUR",
+"additionalCurrencies": [
+"USD"
+],
+"triggerType": "CHANCE_PER_STAKE",
+"triggerConfiguration": {
+"chancePerStakeConfigurations": []
+},
+"state": "CREATED",
+"startDateTime": "2024-01-01T00:00:00Z",
+"endDateTime": "2024-12-31T23:59:59Z",
+"games": [
+529,
+530
+],
+"bonusType": "LUCKY_SPIN",
+"bonusExpirationMinutes": 43200,
+"portals": [
+{},
+{}
+]
+}
+Retrieve Promotions
+Retrieve a list of promotions matching the provided filter criteria.
+
+Authorizations:
+ApiKeyAuth
+query Parameters
+id	
+string
+Filter promotions by their unique identifier.
+
+name	
+string
+Filter promotions by their name.
+
+supportedCurrencies	
+Array of strings
+Filter promotions by supported currencies.
+
+triggerTypes	
+Array of strings (TriggerType)
+Items Enum: "NONE" "START_DATE" "CHANCE_PER_STAKE"
+Filter promotions by their trigger types.
+
+states	
+Array of strings (PromotionState)
+Items Enum: "CREATED" "LIVE" "CANCELLED" "EXHAUSTED" "PAUSED" "FINISHED" "COMPLETED"
+Filter promotions by their states.
+
+liveFrom	
+string <date-time>
+Filter promotions by their live period start date. (UTC time zone)
+
+liveTo	
+string <date-time>
+Filter promotions by their live period end date. (UTC time zone)
+
+games	
+Array of integers <int32> [ items <int32 > ]
+Filter promotions by the unique identifiers of eligible games.
+
+bonusTypes	
+Array of strings (BonusType)
+Items Enum: "FREE_SPIN" "FREE_BUY_BONUS" "LUCKY_SPIN" "GOLDEN_CHIP" "COUNTDOWN_FREE_SPIN"
+Filter promotions by their bonus types.
+
+portalUids	
+Array of integers <int64> [ items <int64 > ]
+Filter promotions by associated portal unique identifiers.
+
+createdFrom	
+string <date-time>
+Filter promotions by their creation date start range. (UTC time zone)
+
+createdTo	
+string <date-time>
+Filter promotions by their creation date end range. (UTC time zone)
+
+offset	
+integer <int64> >= 0
+Set the pagination offset, specifying the number of records to skip.
+
+limit	
+integer <int64> > 0
+Set the pagination limit, specifying the maximum number of records to return.
+
+Responses
+200 Promotions retrieved successfully.
+Response Schema: application/json
+Array 
+id
+required
+string
+The unique identifier of the promotion.
+
+name
+required
+string
+The name of the promotion.
+
+description	
+string
+An optional description of the promotion.
+
+currency
+required
+string
+The main currency code for the promotion, defined by the three-letter currency code as per ISO-4217.
+
+additionalCurrencies
+required
+Array of strings
+Additional currencies supported by the promotion, defined by the three-letter currency code as per ISO-4217.
+
+triggerType
+required
+string
+Enum: "NONE" "START_DATE" "CHANCE_PER_STAKE"
+The method by which bonuses are awarded in the promotion.
+
+triggerConfiguration	
+object
+Any additional configuration details needed for the specified trigger type.
+
+state
+required
+string
+Enum: "CREATED" "LIVE" "CANCELLED" "EXHAUSTED" "PAUSED" "FINISHED" "COMPLETED"
+The current state of the promotion.
+
+publishDateTime	
+string <date-time>
+The publishing date and time of the promotion. (UTC time zone)
+
+startDateTime
+required
+string <date-time>
+The start date and time of the promotion. (UTC time zone)
+
+endDateTime
+required
+string <date-time>
+The end date and time of the promotion. (UTC time zone)
+
+displayUntil	
+string <date-time>
+The display until date and time after the end date of the promotion. (UTC time zone)
+
+cancellationReason	
+string
+Reason for the promotion's cancellation, if applicable.
+
+games
+required
+Array of integers <int32> [ items <int32 > ]
+The unique identifiers of the games eligible for the bonuses of this promotion.
+
+includeBonusMoney	
+boolean
+Indicates whether bonus money transfers are eligible to be processed by the promotion. If the parameter is not provided, it automatically defaults to true.
+
+bonusType
+required
+string
+Enum: "FREE_SPIN" "FREE_BUY_BONUS" "LUCKY_SPIN" "GOLDEN_CHIP" "COUNTDOWN_FREE_SPIN"
+The type of the bonuses awarded from promotion.
+
+bonusTypeConfiguration	
+object
+Any additional configuration details needed for the specified bonus type.
+
+bonusClaimByStrategy	
+string
+Enum: "RELATIVE_TO_AWARD" "CUSTOM"
+The strategy for determining the deadline by which the bonuses awarded from this promotion must be claimed, if applicable.
+
+bonusClaimByMinutes	
+integer <int64> [ 0 .. 1440000 ]
+The number of minutes the bonuses awarded from this promotion are available to be claimed after being awarded. Will be set when the bonusClaimByStrategy is RELATIVE_TO_AWARD.
+
+bonusClaimByDateTime	
+string <date-time>
+The deadline by which the bonuses awarded from this promotion must be claimed. Will be set when the bonusClaimByStrategy is CUSTOM.
+
+bonusExpirationStrategy	
+string
+Enum: "RELATIVE_TO_CLAIM" "CUSTOM"
+The strategy for determining when bonuses awarded from this promotion will expire.
+
+bonusExpirationMinutes	
+integer <int64> ( 0 .. 1440000 ]
+The number of minutes a bonus awarded from this promotion will be valid for after being claimed. Will be set when the bonusExpirationStrategy is RELATIVE_TO_CLAIM.
+
+bonusExpirationDateTime	
+string <date-time>
+The exact date when the bonuses awarded from this promotion will expire. Will be set when the bonusExpirationStrategy is CUSTOM.
+
+portals
+required
+Array of objects (Member)
+The portals participating in the promotion.
+
+400 Bad request due to validation errors.
+Response Schema: application/json
+message	
+string
+details	
+Array of objects (ErrorResponse.ErrorResponseDetails)
+errorCode	
+string
+401 Unauthorized access.
+Response Schema: application/json
+message	
+string
+details	
+Array of objects (ErrorResponse.ErrorResponseDetails)
+errorCode	
+string
+403 Insufficient permissions.
+Response Schema: application/json
+message	
+string
+details	
+Array of objects (ErrorResponse.ErrorResponseDetails)
+errorCode	
+string
+5xx Internal server error.
+
+get
+/promotions
+
+Response samples
+200400401403
+
+Copy
+Expand allCollapse all
+[
+{
+"id": "641652389480553803",
+"name": "Promotion Name",
+"description": "Promotion Description",
+"currency": "EUR",
+"additionalCurrencies": [],
+"triggerType": "CHANCE_PER_STAKE",
+"triggerConfiguration": {},
+"state": "CREATED",
+"startDateTime": "2024-01-01T00:00:00Z",
+"endDateTime": "2024-12-31T23:59:59Z",
+"games": [],
+"bonusType": "LUCKY_SPIN",
+"bonusExpirationMinutes": 43200,
+"portals": []
+}
+]
+Update Promotion
+This method is used whenever the Casino Operator would like to update a Promotion.
+
+Authorizations:
+ApiKeyAuth
+path Parameters
+promotionId
+required
+string
+Unique identifier of the promotion.
+
+Request Body schema: application/json
+required
+The settings that can be updated from a promotion.
+
+name
+required
+string [ 1 .. 128 ] characters
+The name of the promotion.
+
+description	
+string <= 512 characters
+An optional description of the promotion.
+
+currency
+required
+string = 3 characters
+The main currency code for the promotion, defined by the three-letter currency code as per ISO-4217.
+
+additionalCurrencies
+required
+Array of strings <= 200 items [ items = 3 characters ]
+Additional currencies supported by the promotion, defined by the three-letter currency code as per ISO-4217.
+
+triggerConfiguration	
+object
+Any additional configuration details needed for the specified trigger type.
+
+publishDateTime	
+string <date-time>
+The publishing date and time of the promotion. (UTC time zone)
+
+startDateTime
+required
+string <date-time>
+The start date and time of the promotion. (UTC time zone)
+
+endDateTime
+required
+string <date-time>
+The end date and time of the promotion. (UTC time zone)
+
+displayUntil	
+string <date-time>
+The display until date and time after the end date of the promotion. (UTC time zone)
+
+livePeriods	
+Array of objects (PromotionLivePeriod) [ 1 .. 100 ] items
+Defines a list of time windows during which the promotion is live.
+
+skinPlayers
+required
+Array of objects (CreateSkinPlayers) [ 1 .. 50 ] items
+Defines player eligibility for the promotion segregated by skin.
+
+games
+required
+Array of integers <int32> [ 1 .. 1000 ] items [ items <int32 > > 0 ]
+The unique identifiers of the games eligible for the bonuses of this promotion.
+
+includeBonusMoney	
+boolean
+Indicates whether bonus money transfers are eligible to be processed by the promotion. If the parameter is not provided, it automatically defaults to true.
+
+bonusTypeConfiguration	
+object
+Any additional configuration details needed for the specified bonus type.
+
+bonusClaimByStrategy	
+string
+Enum: "RELATIVE_TO_AWARD" "CUSTOM"
+The strategy for determining the deadline by which the bonuses awarded from this promotion must be claimed, if applicable.
+
+bonusClaimByMinutes	
+integer <int64> [ 0 .. 1440000 ]
+The number of minutes the bonuses awarded from this promotion are available to be claimed after being awarded. Required if bonusClaimByStrategy is RELATIVE_TO_AWARD.
+
+bonusClaimByDateTime	
+any <date-time>
+The deadline by which the bonuses awarded from this promotion must be claimed. Required if bonusClaimByStrategy is CUSTOM.
+
+bonusExpirationStrategy	
+string
+Enum: "RELATIVE_TO_CLAIM" "CUSTOM"
+The strategy for determining when bonuses awarded from this promotion will expire.
+
+bonusExpirationMinutes	
+integer <int64> ( 0 .. 1440000 ]
+The number of minutes a bonus awarded from this promotion will be valid for after being claimed. Required if bonusExpirationStrategy is RELATIVE_TO_CLAIM.
+
+bonusExpirationDateTime	
+string <date-time>
+The exact date when the bonuses awarded from this promotion will expire. Required if bonusExpirationStrategy is CUSTOM.
+
+bonusSets
+required
+Array of objects (CreateBonusSet) [ 1 .. 5000 ] items
+Defines distinct templates that specify the characteristics and limits of the bonuses awarded from this configuration.
+
+portalNames
+required
+Array of strings [ 1 .. 50 ] items [ items [ 1 .. 128 ] characters ]
+The names of the portals participating in the promotion.
+
+Responses
+200 Promotion updated successfully.
+Response Schema: application/json
+promotion
+required
+object
+The basic details of the promotion.
+
+bonusSets
+required
+Array of objects (BonusSet)
+The promotion's bonus sets.
+
+skinPlayers
+required
+Array of objects (SkinPlayers)
+The promotion's player configuration segregated by skin.
+
+livePeriods	
+Array of objects (PromotionLivePeriod)
+The list of specific time windows during which this promotion is active, as returned by the system.
+
+400 Bad request due to validation errors.
+Response Schema: application/json
+message	
+string
+details	
+Array of objects (ErrorResponse.ErrorResponseDetails)
+errorCode	
+string
+401 Unauthorized access.
+Response Schema: application/json
+message	
+string
+details	
+Array of objects (ErrorResponse.ErrorResponseDetails)
+errorCode	
+string
+403 Insufficient permissions.
+Response Schema: application/json
+message	
+string
+details	
+Array of objects (ErrorResponse.ErrorResponseDetails)
+errorCode	
+string
+404 Promotion not found.
+Response Schema: application/json
+message	
+string
+details	
+Array of objects (ErrorResponse.ErrorResponseDetails)
+errorCode	
+string
+409 Conflict occurred because the promotion is in an invalid state.
+Response Schema: application/json
+message	
+string
+details	
+Array of objects (ErrorResponse.ErrorResponseDetails)
+errorCode	
+string
+5xx Internal server error.
+
+put
+/promotions/{promotionId}
+
+Request samples
+Payload
+
+Copy
+Expand allCollapse all
+{
+"name": "Promotion Name",
+"description": "Promotion Description",
+"currency": "EUR",
+"additionalCurrencies": [
+"USD"
+],
+"triggerConfiguration": {
+"chancePerStakeConfigurations": []
+},
+"startDateTime": "2024-01-01T00:00:00Z",
+"endDateTime": "2024-12-31T23:59:59Z",
+"skinPlayers": [
+{}
+],
+"games": [
+529,
+530
+],
+"bonusExpirationMinutes": 43200,
+"bonusSets": [
+{},
+{}
+],
+"portalNames": [
+"Portal Name"
+]
+}
+Response samples
+200400401403404409
+
+Copy
+Expand allCollapse all
+{
+"promotion": {
+"id": "641652389480553803",
+"name": "Promotion Name",
+"description": "Promotion Description",
+"currency": "EUR",
+"additionalCurrencies": [],
+"triggerType": "CHANCE_PER_STAKE",
+"triggerConfiguration": {},
+"state": "CREATED",
+"startDateTime": "2024-01-01T00:00:00Z",
+"endDateTime": "2024-12-31T23:59:59Z",
+"games": [],
+"bonusType": "LUCKY_SPIN",
+"bonusExpirationMinutes": 43200,
+"portals": []
+},
+"bonusSets": [
+{}
+],
+"skinPlayers": [
+{}
+],
+"livePeriods": [
+{}
+]
+}
+Award Bonus from Promotion
+This method is used whenever the Casino Operator would like to award Bonus from a Promotion.
+
+Authorizations:
+ApiKeyAuth
+path Parameters
+promotionId
+required
+string
+Unique identifier of the promotion.
+
+Request Body schema: application/json
+required
+The settings needed for awarding a bonus from a promotion.
+
+id
+required
+string <uuid>
+The idempotency key of the request. Must be a UUID represented by a standard 36-char string.
+
+amount
+required
+integer <int64> > 0
+The quantity of bonuses being awarded to the player. Constraints: The parameter is required for all award types except COUNTDOWN_FREE_SPIN, for which it may be omitted or set to null. The parameter must be set to 1 for FREE_BUY_BONUS.
+
+playerId
+required
+string [ 1 .. 64 ] characters
+The identifier of the player to be awarded this bonus.
+
+skinName
+required
+string [ 1 .. 128 ] characters
+The name of the player's skin.
+
+currency
+required
+string = 3 characters
+The currency code for the bonus, defined by the three-letter currency code as per ISO-4217.
+
+Responses
+200 Bonus awarded successfully.
+Response Schema: application/json
+id
+required
+string
+The unique identifier of the bonus.
+
+groupId
+required
+string
+The unique identifier of the group this bonus is associated with. If the bonus is awarded manually, the groupID represents the 'bundleID' assigned to that specific set of bonuses; if the bonus is linked to a promotion, the groupID matches the 'promotionID'.
+
+sourceId	
+string
+The unique identifier of the associated source promotional tool that awarded the bonus (example Promotion ID or Tournament ID), if applicable.'.
+
+groupType
+required
+string
+Enum: "PROMOTION" "MANUAL"
+The type of the group this bonus belongs to.
+
+playerId
+required
+string
+The identifier of the player that received this bonus.
+
+type
+required
+string
+Enum: "FREE_SPIN" "FREE_BUY_BONUS" "LUCKY_SPIN" "GOLDEN_CHIP" "COUNTDOWN_FREE_SPIN"
+The type of the bonus awarded.
+
+typeConfiguration	
+object
+Any additional configuration details needed for the specified bonus type.
+
+awardedAmount	
+integer <int64>
+The total amount awarded. Constraint: The parameter is provided for all award types except COUNTDOWN_FREE_SPIN, for which it is omitted or set to null.
+
+consumedAmount
+required
+integer <int64>
+The amount that has already been consumed.
+
+revertedAmount
+required
+integer <int64>
+The amount that has been reverted.
+
+remainingAmount	
+integer <int64>
+The remaining amount available to be consumed. Constraint: The parameter is provided for all award types except COUNTDOWN_FREE_SPIN, for which it is omitted or set to null.
+
+state
+required
+string
+Enum: "AWARDED" "CLAIMED" "IN_PLAY" "CONSUMED" "REVERTED" "UNCLAIMED" "EXPIRED" "DECLINED" "REVOKED"
+The current state of the bonus.
+
+claimByStrategy
+required
+string
+Enum: "RELATIVE_TO_AWARD" "CUSTOM"
+The strategy for determining the deadline by which the bonuses must be claimed.
+
+claimByMinutes	
+integer <int64> [ 0 .. 1440000 ]
+The number of minutes the bonuses are available to be claimed after being awarded. Will be set when the claimByStrategy is RELATIVE_TO_AWARD.
+
+claimByDateTime
+required
+string <date-time>
+The deadline by which the bonus must be claimed. (UTC time zone)
+
+expirationStrategy
+required
+string
+Enum: "RELATIVE_TO_CLAIM" "CUSTOM"
+The strategy for determining when the bonuses will expire.
+
+expirationMinutes	
+integer <int64> ( 0 .. 1440000 ]
+The number of minutes the bonus is valid for after being claimed. Will be set when the expirationStrategy is RELATIVE_TO_CLAIM.
+
+expirationDateTime	
+string <date-time>
+The deadline by which the bonus, once claimed, must be used. (UTC time zone)
+
+games
+required
+Array of integers <int32> [ items <int32 > ]
+The unique identifiers of the games eligible for the bonuses.
+
+inPlayGame	
+integer <int32>
+The unique identifier of the game in which the bonus is currently being played, if applicable.
+
+portals
+required
+Array of objects (Member)
+The portals where this bonus is available.
+
+currency
+required
+string
+The currency code for the bonuses, defined by the three-letter currency code as per ISO-4217.
+
+betValueStrategy
+required
+string
+Enum: "MINIMUM" "EXACT" "CLOSEST" "CLOSEST_LOWER" "CLOSEST_HIGHER"
+The strategy used for determining the bet value.
+
+betValue	
+number
+The value of the bonus. The parameter may be omitted if the Bet Value Strategy used is MINIMUM. For any other Bet Value Strategy, the parameter is required.
+
+400 Bad request due to validation errors.
+Response Schema: application/json
+message	
+string
+details	
+Array of objects (ErrorResponse.ErrorResponseDetails)
+errorCode	
+string
+401 Unauthorized access.
+Response Schema: application/json
+message	
+string
+details	
+Array of objects (ErrorResponse.ErrorResponseDetails)
+errorCode	
+string
+403 Insufficient permissions.
+Response Schema: application/json
+message	
+string
+details	
+Array of objects (ErrorResponse.ErrorResponseDetails)
+errorCode	
+string
+404 Promotion not found.
+Response Schema: application/json
+message	
+string
+details	
+Array of objects (ErrorResponse.ErrorResponseDetails)
+errorCode	
+string
+409 Conflict occurred because the promotion is in an invalid state or of an invalid trigger type.
+Response Schema: application/json
+message	
+string
+details	
+Array of objects (ErrorResponse.ErrorResponseDetails)
+errorCode	
+string
+5xx Internal server error.
+
+post
+/promotions/{promotionId}
+
+Request samples
+Payload
+
+Copy
+{
+"id": "11560041-76b0-4d81-8f0e-d34b1bd77175",
+"amount": 5,
+"playerId": "Player A",
+"skinName": "Skin Name",
+"currency": "EUR"
+}
+Response samples
+200400401403404409
+
+Copy
+Expand allCollapse all
+{
+"id": "641228496479505084",
+"groupId": "641228495296711302",
+"groupType": "MANUAL",
+"playerId": "Player A",
+"type": "FREE_SPIN",
+"awardedAmount": 5,
+"consumedAmount": 1,
+"remainingAmount": 4,
+"state": "IN_PLAY",
+"claimByDateTime": "2024-12-31T23:59:59Z",
+"expirationDateTime": "2024-12-31T23:59:59Z",
+"games": [
+529,
+530
+],
+"inPlayGame": 530,
+"portals": [
+{},
+{}
+],
+"currency": "EUR",
+"betValueStrategy": "EXACT",
+"betValue": "0.15"
+}
+Retrieve single Promotion
+Retrieve a promotion using its unique identifier.
+
+Authorizations:
+ApiKeyAuth
+path Parameters
+promotionId
+required
+string
+Unique identifier of the promotion.
+
+Responses
+200 Promotion retrieved successfully.
+Response Schema: application/json
+id
+required
+string
+The unique identifier of the promotion.
+
+name
+required
+string
+The name of the promotion.
+
+description	
+string
+An optional description of the promotion.
+
+currency
+required
+string
+The main currency code for the promotion, defined by the three-letter currency code as per ISO-4217.
+
+additionalCurrencies
+required
+Array of strings
+Additional currencies supported by the promotion, defined by the three-letter currency code as per ISO-4217.
+
+triggerType
+required
+string
+Enum: "NONE" "START_DATE" "CHANCE_PER_STAKE"
+The method by which bonuses are awarded in the promotion.
+
+triggerConfiguration	
+object
+Any additional configuration details needed for the specified trigger type.
+
+state
+required
+string
+Enum: "CREATED" "LIVE" "CANCELLED" "EXHAUSTED" "PAUSED" "FINISHED" "COMPLETED"
+The current state of the promotion.
+
+publishDateTime	
+string <date-time>
+The publishing date and time of the promotion. (UTC time zone)
+
+startDateTime
+required
+string <date-time>
+The start date and time of the promotion. (UTC time zone)
+
+endDateTime
+required
+string <date-time>
+The end date and time of the promotion. (UTC time zone)
+
+displayUntil	
+string <date-time>
+The display until date and time after the end date of the promotion. (UTC time zone)
+
+cancellationReason	
+string
+Reason for the promotion's cancellation, if applicable.
+
+games
+required
+Array of integers <int32> [ items <int32 > ]
+The unique identifiers of the games eligible for the bonuses of this promotion.
+
+includeBonusMoney	
+boolean
+Indicates whether bonus money transfers are eligible to be processed by the promotion. If the parameter is not provided, it automatically defaults to true.
+
+bonusType
+required
+string
+Enum: "FREE_SPIN" "FREE_BUY_BONUS" "LUCKY_SPIN" "GOLDEN_CHIP" "COUNTDOWN_FREE_SPIN"
+The type of the bonuses awarded from promotion.
+
+bonusTypeConfiguration	
+object
+Any additional configuration details needed for the specified bonus type.
+
+bonusClaimByStrategy	
+string
+Enum: "RELATIVE_TO_AWARD" "CUSTOM"
+The strategy for determining the deadline by which the bonuses awarded from this promotion must be claimed, if applicable.
+
+bonusClaimByMinutes	
+integer <int64> [ 0 .. 1440000 ]
+The number of minutes the bonuses awarded from this promotion are available to be claimed after being awarded. Will be set when the bonusClaimByStrategy is RELATIVE_TO_AWARD.
+
+bonusClaimByDateTime	
+string <date-time>
+The deadline by which the bonuses awarded from this promotion must be claimed. Will be set when the bonusClaimByStrategy is CUSTOM.
+
+bonusExpirationStrategy	
+string
+Enum: "RELATIVE_TO_CLAIM" "CUSTOM"
+The strategy for determining when bonuses awarded from this promotion will expire.
+
+bonusExpirationMinutes	
+integer <int64> ( 0 .. 1440000 ]
+The number of minutes a bonus awarded from this promotion will be valid for after being claimed. Will be set when the bonusExpirationStrategy is RELATIVE_TO_CLAIM.
+
+bonusExpirationDateTime	
+string <date-time>
+The exact date when the bonuses awarded from this promotion will expire. Will be set when the bonusExpirationStrategy is CUSTOM.
+
+portals
+required
+Array of objects (Member)
+The portals participating in the promotion.
+
+401 Unauthorized access.
+Response Schema: application/json
+message	
+string
+details	
+Array of objects (ErrorResponse.ErrorResponseDetails)
+errorCode	
+string
+403 Insufficient permissions.
+Response Schema: application/json
+message	
+string
+details	
+Array of objects (ErrorResponse.ErrorResponseDetails)
+errorCode	
+string
+404 Promotion not found.
+Response Schema: application/json
+message	
+string
+details	
+Array of objects (ErrorResponse.ErrorResponseDetails)
+errorCode	
+string
+5xx Internal server error.
+
+get
+/promotions/{promotionId}
+
+Response samples
+200401403404
+
+Copy
+Expand allCollapse all
+{
+"id": "641652389480553803",
+"name": "Promotion Name",
+"description": "Promotion Description",
+"currency": "EUR",
+"additionalCurrencies": [
+"USD"
+],
+"triggerType": "CHANCE_PER_STAKE",
+"triggerConfiguration": {
+"chancePerStakeConfigurations": []
+},
+"state": "CREATED",
+"startDateTime": "2024-01-01T00:00:00Z",
+"endDateTime": "2024-12-31T23:59:59Z",
+"games": [
+529,
+530
+],
+"bonusType": "LUCKY_SPIN",
+"bonusExpirationMinutes": 43200,
+"portals": [
+{},
+{}
+]
+}
+Retrieve the bonus sets of Promotion
+Retrieve the bonus sets associated with a given Promotion.
+
+Authorizations:
+ApiKeyAuth
+path Parameters
+promotionId
+required
+string
+Unique identifier of the promotion.
+
+Responses
+200 Bonus sets retrieved successfully.
+Response Schema: application/json
+Array 
+id
+required
+string <uuid>
+Unique identifier of the bonus set. Must be a UUID represented by a standard 36-char string.
+
+budget	
+integer <int64>
+The total budget for the bonus set, defining the limit on the total number of bonuses that can be awarded.
+
+budgetUnit	
+string
+Enum: "BONUS_SETS" "BONUSES"
+The unit of the budget, indicating whether it applies to individual bonuses or sets of bonuses.
+
+awardedAmount
+required
+integer <int64>
+The total amount awarded from the budget.
+
+currencies
+required
+Array of objects (BonusSetCurrency)
+Defines the bonus set configurations for different currencies.
+
+401 Unauthorized access.
+Response Schema: application/json
+message	
+string
+details	
+Array of objects (ErrorResponse.ErrorResponseDetails)
+errorCode	
+string
+403 Insufficient permissions.
+Response Schema: application/json
+message	
+string
+details	
+Array of objects (ErrorResponse.ErrorResponseDetails)
+errorCode	
+string
+404 Promotion not found.
+Response Schema: application/json
+message	
+string
+details	
+Array of objects (ErrorResponse.ErrorResponseDetails)
+errorCode	
+string
+5xx Internal server error.
+
+get
+/promotions/{promotionId}/bonus-sets
+
+Response samples
+200401403404
+
+Copy
+Expand allCollapse all
+[
+{
+"id": "f0f30ef7-08d0-436f-bc99-87202d1ed116",
+"budget": 100,
+"budgetUnit": "BONUS_SETS",
+"awardedAmount": 0,
+"currencies": []
+}
+]
+Cancel Promotion
+This method is used whenever the Casino Operator would like to cancel a Promotion.
+
+Authorizations:
+ApiKeyAuth
+path Parameters
+promotionId
+required
+string
+Unique identifier of the promotion.
+
+Request Body schema: application/json
+required
+The settings needed for cancelling a promotion.
+
+reason
+required
+string [ 1 .. 128 ] characters
+The reason for cancelling the promotion.
+
+Responses
+200 Promotion cancelled successfully.
+Response Schema: application/json
+id
+required
+string
+The unique identifier of the promotion.
+
+name
+required
+string
+The name of the promotion.
+
+description	
+string
+An optional description of the promotion.
+
+currency
+required
+string
+The main currency code for the promotion, defined by the three-letter currency code as per ISO-4217.
+
+additionalCurrencies
+required
+Array of strings
+Additional currencies supported by the promotion, defined by the three-letter currency code as per ISO-4217.
+
+triggerType
+required
+string
+Enum: "NONE" "START_DATE" "CHANCE_PER_STAKE"
+The method by which bonuses are awarded in the promotion.
+
+triggerConfiguration	
+object
+Any additional configuration details needed for the specified trigger type.
+
+state
+required
+string
+Enum: "CREATED" "LIVE" "CANCELLED" "EXHAUSTED" "PAUSED" "FINISHED" "COMPLETED"
+The current state of the promotion.
+
+publishDateTime	
+string <date-time>
+The publishing date and time of the promotion. (UTC time zone)
+
+startDateTime
+required
+string <date-time>
+The start date and time of the promotion. (UTC time zone)
+
+endDateTime
+required
+string <date-time>
+The end date and time of the promotion. (UTC time zone)
+
+displayUntil	
+string <date-time>
+The display until date and time after the end date of the promotion. (UTC time zone)
+
+cancellationReason	
+string
+Reason for the promotion's cancellation, if applicable.
+
+games
+required
+Array of integers <int32> [ items <int32 > ]
+The unique identifiers of the games eligible for the bonuses of this promotion.
+
+includeBonusMoney	
+boolean
+Indicates whether bonus money transfers are eligible to be processed by the promotion. If the parameter is not provided, it automatically defaults to true.
+
+bonusType
+required
+string
+Enum: "FREE_SPIN" "FREE_BUY_BONUS" "LUCKY_SPIN" "GOLDEN_CHIP" "COUNTDOWN_FREE_SPIN"
+The type of the bonuses awarded from promotion.
+
+bonusTypeConfiguration	
+object
+Any additional configuration details needed for the specified bonus type.
+
+bonusClaimByStrategy	
+string
+Enum: "RELATIVE_TO_AWARD" "CUSTOM"
+The strategy for determining the deadline by which the bonuses awarded from this promotion must be claimed, if applicable.
+
+bonusClaimByMinutes	
+integer <int64> [ 0 .. 1440000 ]
+The number of minutes the bonuses awarded from this promotion are available to be claimed after being awarded. Will be set when the bonusClaimByStrategy is RELATIVE_TO_AWARD.
+
+bonusClaimByDateTime	
+string <date-time>
+The deadline by which the bonuses awarded from this promotion must be claimed. Will be set when the bonusClaimByStrategy is CUSTOM.
+
+bonusExpirationStrategy	
+string
+Enum: "RELATIVE_TO_CLAIM" "CUSTOM"
+The strategy for determining when bonuses awarded from this promotion will expire.
+
+bonusExpirationMinutes	
+integer <int64> ( 0 .. 1440000 ]
+The number of minutes a bonus awarded from this promotion will be valid for after being claimed. Will be set when the bonusExpirationStrategy is RELATIVE_TO_CLAIM.
+
+bonusExpirationDateTime	
+string <date-time>
+The exact date when the bonuses awarded from this promotion will expire. Will be set when the bonusExpirationStrategy is CUSTOM.
+
+portals
+required
+Array of objects (Member)
+The portals participating in the promotion.
+
+400 Bad request due to validation errors.
+Response Schema: application/json
+message	
+string
+details	
+Array of objects (ErrorResponse.ErrorResponseDetails)
+errorCode	
+string
+401 Unauthorized access.
+Response Schema: application/json
+message	
+string
+details	
+Array of objects (ErrorResponse.ErrorResponseDetails)
+errorCode	
+string
+403 Insufficient permissions.
+Response Schema: application/json
+message	
+string
+details	
+Array of objects (ErrorResponse.ErrorResponseDetails)
+errorCode	
+string
+404 Promotion not found.
+Response Schema: application/json
+message	
+string
+details	
+Array of objects (ErrorResponse.ErrorResponseDetails)
+errorCode	
+string
+409 Conflict occurred because the promotion is in an invalid state.
+Response Schema: application/json
+message	
+string
+details	
+Array of objects (ErrorResponse.ErrorResponseDetails)
+errorCode	
+string
+5xx Internal server error.
+
+post
+/promotions/{promotionId}/cancel
+
+Request samples
+Payload
+
+Copy
+{
+"reason": "Cancellation Reason"
+}
+Response samples
+200400401403404409
+
+Copy
+Expand allCollapse all
+{
+"id": "641652389480553803",
+"name": "Promotion Name",
+"description": "Promotion Description",
+"currency": "EUR",
+"additionalCurrencies": [
+"USD"
+],
+"triggerType": "CHANCE_PER_STAKE",
+"triggerConfiguration": {
+"chancePerStakeConfigurations": []
+},
+"state": "CREATED",
+"startDateTime": "2024-01-01T00:00:00Z",
+"endDateTime": "2024-12-31T23:59:59Z",
+"games": [
+529,
+530
+],
+"bonusType": "LUCKY_SPIN",
+"bonusExpirationMinutes": 43200,
+"portals": [
+{},
+{}
+]
+}
+Retrieve Promotion's details
+Retrieve detailed information about a promotion using its unique identifier.
+
+Authorizations:
+ApiKeyAuth
+path Parameters
+promotionId
+required
+string
+Unique identifier of the promotion.
+
+Responses
+200 Detailed promotion retrieved successfully.
+Response Schema: application/json
+promotion
+required
+object
+The basic details of the promotion.
+
+bonusSets
+required
+Array of objects (BonusSet)
+The promotion's bonus sets.
+
+skinPlayers
+required
+Array of objects (SkinPlayers)
+The promotion's player configuration segregated by skin.
+
+livePeriods	
+Array of objects (PromotionLivePeriod)
+The list of specific time windows during which this promotion is active, as returned by the system.
+
+401 Unauthorized access.
+Response Schema: application/json
+message	
+string
+details	
+Array of objects (ErrorResponse.ErrorResponseDetails)
+errorCode	
+string
+403 Insufficient permissions.
+Response Schema: application/json
+message	
+string
+details	
+Array of objects (ErrorResponse.ErrorResponseDetails)
+errorCode	
+string
+404 Promotion not found.
+Response Schema: application/json
+message	
+string
+details	
+Array of objects (ErrorResponse.ErrorResponseDetails)
+errorCode	
+string
+5xx Internal server error.
+
+get
+/promotions/{promotionId}/detailed
+
+Response samples
+200401403404
+
+Copy
+Expand allCollapse all
+{
+"promotion": {
+"id": "641652389480553803",
+"name": "Promotion Name",
+"description": "Promotion Description",
+"currency": "EUR",
+"additionalCurrencies": [],
+"triggerType": "CHANCE_PER_STAKE",
+"triggerConfiguration": {},
+"state": "CREATED",
+"startDateTime": "2024-01-01T00:00:00Z",
+"endDateTime": "2024-12-31T23:59:59Z",
+"games": [],
+"bonusType": "LUCKY_SPIN",
+"bonusExpirationMinutes": 43200,
+"portals": []
+},
+"bonusSets": [
+{}
+],
+"skinPlayers": [
+{}
+],
+"livePeriods": [
+{}
+]
+}
+Get games details
+This method is used whenever the Casino Operator would like to obtain the Game details.
+
+Authorizations:
+ApiKeyAuth
+query Parameters
+gins
+required
+Array of integers <int32> [ items <int32 > ]
+Filter games by their unique identifiers. One may retrieve information for multiple games by passing more than one game identification number as query parameter.
+
+portalName
+required
+string [ 1 .. 128 ] characters
+The name of the portal to resolve details for.
+
+currency
+required
+string = 3 characters
+The currency to resolve game details for, defined by the three-letter currency code as per ISO-4217. One may retrieve information for only one currency per request.
+
+Responses
+200 Games Details retrieved successfully.
+Response Schema: application/json
+Array 
+gin
+required
+integer <int32>
+The unique identifier of the game.
+
+portal
+required
+object
+The portal associated with the game.
+
+currency
+required
+string
+The currency code associated with the game details, defined by the three-letter currency code as per ISO-4217.
+
+betAmounts
+required
+Array of numbers
+The bet amounts associated with the game for the given portal and currency.
+
+supportedBonusTypes
+required
+Array of strings (BonusType)
+Items Enum: "FREE_SPIN" "FREE_BUY_BONUS" "LUCKY_SPIN" "GOLDEN_CHIP" "COUNTDOWN_FREE_SPIN"
+The supported bonus types for the game.
+
+buyBonusFeatures
+required
+Array of objects (BuyBonusFeature)
+The bonus features associated with the game.
+
+400 Bad request due to validation errors.
+Response Schema: application/json
+message	
+string
+details	
+Array of objects (ErrorResponse.ErrorResponseDetails)
+errorCode	
+string
+401 Unauthorized access.
+Response Schema: application/json
+message	
+string
+details	
+Array of objects (ErrorResponse.ErrorResponseDetails)
+errorCode	
+string
+5xx Internal server error.
+
+get
+/game-details?gins={gameGIN}&portalName={portalName}&currency={currency}
+
+Response samples
+200400401
+
+Copy
+Expand allCollapse all
+[
+{
+"gin": 529,
+"portal": {},
+"currency": "EUR",
+"betAmounts": [],
+"supportedBonusTypes": [],
+"buyBonusFeatures": []
+}
+]
+
+ Back to top
+Previous
+Bonus Platform
+Next
+Bonus Hub
+Copyright © 2025 Amusnet Ltd. All rights reserved
+Made with Material for MkDocs
+
+Bonus Hub
+The Bonus Hub is a complementary feature of the Bonus Platform that is designed to help the Operators to better manage and present player bonuses for Amusnet games. By acting as a centralized and user-friendly gateway, it provides a seamless and engaging interface where players can view and claim their bonuses, directly launching the associated games. By streamlining the process from bonus awarding to gameplay, this feature not only enhances the player experience but also serves as a simplified yet powerful tool for Operators to boost bonus utilization and increase player retention. With minimal integration effort required, the Bonus Hub offers a flexible and customizable solution that aligns perfectly with an Operator's existing platform and branding, providing a direct gateway to improved player loyalty and increased game usage.
+
+Key Components¶
+Straightforward JS and CSS files, available for download from the link below, allowing for easy integration Assets, including banners for each Bonus Type (e.g., Free Spins, Golden Chips, etc.) Detailed usage documentation to ensure smooth implementation and configuration. You should follow the instructions in the get-started.html file provided in the assets. A pre-configured default behavior example demonstrating the widget's out-of-the-box functionality.
+
+Bonus Hub Assets
+
+Benefits¶
+Enhanced Customization: Opportunity to define the behavior, positioning, and responsive design of the widget, according to your needs and requirements.
+Design Control: Full control over the look and feel of the widgets, so they can fit perfectly into your design.
+Minimal Integration: The minimal integration effort and comprehensive documentation reduce the technical burden on operators, allowing for a quick and efficient launch.
+
+
+Push Balance Notification
+This method is used so that the player balance is updated in case funds are added during gameplay. A POST request should be made towards post-player-balance endpoint. This request triggers our API to send the Casino Operator’s API a GetPlayerBalance GET request to the get-player-balance endpoint.
+
+post-player-balance
+Authorizations:
+Native system auth
+Request Body schema: application/json
+required
+messageId
+required
+string
+The idempotency key of the request
+
+sessions
+required
+Array of objects (PostPlayerBalanceRequestSession) [ 1 .. 10 ] items
+The unique identifiers of the sessions that should be updated
+
+Responses
+200 postPlayerBalance response
+Response Schema: application/json
+messageId	
+string
+The idempotency key of the response
+
+sessionId	
+Array of arrays
+The unique identifiers of the sessions that should be updated
+
+401 Unauthorized access
+408 Request Timeout
+5xx Internal Server Error
+
+post
+/v1/forceGetPlayerBalance
+
+Request samples
+Payload
+
+Copy
+Expand allCollapse all
+{
+"messageId": "string",
+"sessions": [
+{}
+]
+}
+Response samples
+200
+
+Copy
+Expand allCollapse all
+{
+"messageId": "string",
+"sessionId": [ ]
+}
+get-player-balance
+Authorizations:
+Native system authentication
+Request Body schema: application/json
+required
+portalCode
+required
+string
+Predefined constant that binds Portal and Currency, provided by Amusnet MGS system
+
+playerId
+required
+string
+A Casino Operator's Player ID
+
+currency
+required
+string
+Currency the Player uses in the Casino Operator system; ISO 4217 standard
+
+sessionId
+required
+string
+Provided by Amusnet MGS and it remains valid until the end of the Game session
+
+gameId
+required
+string
+Unique Game ID provided by Amusnet MGS system
+
+Responses
+200 getPlayerBalance response
+Response Schema: application/json
+balance	
+integer <int64>
+Player's current Casino Operator available balance
+
+errorMessage	
+string
+Sent by operator
+
+responseCodeReason	
+string
+Predefined (by MGS) code representing the request outcome
+
+401 Unauthorized access
+408 Request Timeout
+5xx Internal Server Error
+
+
+Compliance Reports
+Authorization API
+Request Body schema: application/json
+required
+username
+required
+string
+A username, set in advance, allowing the recognition between the two systems
+
+password
+required
+string
+A password, set in advance, allowing the recognition between the two systems
+
+Responses
+200 Login successful
+Response Schema: application/json
+accessToken
+required
+string
+The authentication token permitting access to the reporting API
+
+expiresIn
+required
+integer
+The duration in seconds that the token will expire in from the time of issue.
+
+400 Invalid parameters supplied
+
+post
+/login
+
+Request samples
+Payload
+
+Copy
+{
+"username": "string",
+"password": "string"
+}
+Response samples
+200
+
+Copy
+{
+"accessToken": "string",
+"expiresIn": 0
+}
+Progressive jackpot configuration report
+Authorizations:
+AuthorizationAccessToken
+query Parameters
+dateFrom
+required
+string <date>
+Example: dateFrom=2023-08-01
+The start date of the report
+
+dateTo
+required
+string <date>
+Example: dateTo=2023-08-05
+The end date of the report
+
+Responses
+200 Report generated
+Response Schema: application/json
+Array 
+jackpotId
+required
+string
+Static identifier assigned to the Jackpot.
+
+jackpotType
+required
+string
+The type of the Jackpot.
+
+name
+required
+string
+Name of the Jackpot.
+
+state
+required
+string
+Enum: "ACTIVE" "INACTIVE"
+State of the Jackpot.
+
+currency
+required
+string^[A-Z]{3}$
+Currency type in three-letter ISO format.
+
+jackpotLevels
+required
+integer
+Number/count of levels of the Jackpot.
+
+startDate
+required
+string <date-time>
+Start date and time of the Jackpot.
+
+endDate	
+string or null <date-time>
+End date and time of the Jackpot, in case of jackpot stoppage.
+
+avgContributionPercentageLevel1	
+string or null
+Average contribution percentage to the Jackpot for the requested period for level 1. Always present for jackpots that support this level.
+
+avgContributionPercentageLevel2	
+string or null
+Average contribution percentage to the Jackpot for the requested period for level 2. Always present for jackpots that support this level.
+
+avgContributionPercentageLevel3	
+string or null
+Average contribution percentage to the Jackpot for the requested period for level 3. Always present for jackpots that support this level.
+
+avgContributionPercentageLevel4	
+string or null
+Average contribution percentage to the Jackpot for the requested period for level 4. Always present for jackpots that support this level.
+
+games
+required
+Array of integers <int64> [ items <int64 > ]
+The array of game ids for all Games contributing to the Jackpot.
+
+winAmountLevel1	
+string or null
+Total winning amount for Jackpot level 1. Always present for jackpots that support this level.
+
+winAmountLevel2	
+string or null
+Total winning amount for Jackpot level 2. Always present for jackpots that support this level.
+
+winAmountLevel3	
+string or null
+Total winning amount for Jackpot level 3. Always present for jackpots that support this level.
+
+winAmountLevel4	
+string or null
+Total winning amount for Jackpot level 4. Always present for jackpots that support this level.
+
+contributions
+required
+string
+Total amount contributed to the Jackpot.
+
+minBet
+required
+string
+Minimum qualifying bet.
+
+maxBet
+required
+string
+Maximum qualifying bet.
+
+minTrigger	
+string or null
+Minimum amount collected, before a Jackpot can be won by a Player.
+
+maxTrigger	
+string or null
+Maximum amount collected, before a Jackpot can be won by a Player.
+
+openingBalanceLevel1	
+string or null
+Starting amount of the Jackpot for level 1. Always present for jackpots that support this level.
+
+openingBalanceLevel2	
+string or null
+Starting amount of the Jackpot for level 2. Always present for jackpots that support this level.
+
+openingBalanceLevel3	
+string or null
+Starting amount of the Jackpot for level 3. Always present for jackpots that support this level.
+
+openingBalanceLevel4	
+string or null
+Starting amount of the Jackpot for level 4. Always present for jackpots that support this level.
+
+currentBalanceLevel1	
+string or null
+Total amount that has been accumulated for the Jackpot level 1. Always present for jackpots that support this level.
+
+currentBalanceLevel2	
+string or null
+Total amount that has been accumulated for the Jackpot level 2. Always present for jackpots that support this level.
+
+currentBalanceLevel3	
+string or null
+Total amount that has been accumulated for the Jackpot level 3. Always present for jackpots that support this level.
+
+currentBalanceLevel4	
+string or null
+Total amount that has been accumulated for the Jackpot level 4. Always present for jackpots that support this level.
+
+hiddenBalanceLevel1	
+string or null
+Total hidden amount that has been accumulated for the Jackpot level 1, if any.
+
+hiddenBalanceLevel2	
+string or null
+Total hidden amount that has been accumulated for the Jackpot level 2, if any.
+
+hiddenBalanceLevel3	
+string or null
+Total hidden amount that has been accumulated for the Jackpot level 3, if any.
+
+hiddenBalanceLevel4	
+string or null
+Total hidden amount that has been accumulated for the Jackpot level 4, if any.
+
+limitLevel1	
+string or null
+Maximum amount above which the Jackpot amount stops being accumulated until a Player wins it, for Jackpot level 1.
+
+limitLevel2	
+string or null
+Maximum amount above which the Jackpot amount stops being accumulated until a player wins it, for Jackpot level 2.
+
+limitLevel3	
+string or null
+Maximum amount above which the Jackpot amount stops being accumulated until a player wins it, for Jackpot level 3.
+
+limitLevel4	
+string or null
+Maximum amount above which the Jackpot amount stops being accumulated until a player wins it, for Jackpot level 4.
+
+limitExcessLevel1	
+string or null
+Amount that is stored whenever the Jackpot limit value is reached, for Jackpot level 1.
+
+limitExcessLevel2	
+string or null
+Amount that is stored whenever the Jackpot limit value is reached, for Jackpot level 2.
+
+limitExcessLevel3	
+string or null
+Amount that is stored whenever the Jackpot limit value is reached, for Jackpot level 3.
+
+limitExcessLevel4	
+string or null
+Amount that is stored whenever the Jackpot limit value is reached, for Jackpot level 4.
+
+timeJackpotLimitCeilingLevel1	
+integer or null
+Maximum time limit (hours) that a Jackpot can be given to a Player for Jackpot level 1.
+
+timeJackpotLimitCeilingLevel2	
+integer or null
+Maximum time limit (hours) that a Jackpot can be given to a Player for Jackpot level 2.
+
+timeJackpotLimitCeilingLevel3	
+integer or null
+Maximum time limit (hours) that a Jackpot can be given to a Player for Jackpot level 3.
+
+timeJackpotLimitCeilingLevel4	
+integer or null
+Maximum time limit (hours) that a Jackpot can be given to a Player for Jackpot level 4.
+
+totalJackpotRakeLevel1	
+string or null
+Total rake amount that has been accumulated for the Jackpot level 1.
+
+totalJackpotRakeLevel2	
+string or null
+Total rake amount that has been accumulated for the Jackpot level 2.
+
+totalJackpotRakeLevel3	
+string or null
+Total rake amount that has been accumulated for the Jackpot level 3.
+
+totalJackpotRakeLevel4	
+string or null
+Total rake amount that has been accumulated for the Jackpot level 4.
+
+newJackpotId	
+integer or null
+New identifier assigned to the Jackpot, if any.
+
+jackpotTransferredDate	
+string or null <date>
+Date the Jackpot was transferred, if any.
+
+jackpotTransferredAmountLevel1	
+string or null
+Amount that was transferred from a profit distribution level of a Jackpot to another profit distribution level of the same or another Jackpot, for level 1.
+
+jackpotTransferredAmountLevel2	
+string or null
+Amount that was transferred from a profit distribution level of a Jackpot to another profit distribution level of the same or another Jackpot, for level 2.
+
+jackpotTransferredAmountLevel3	
+string or null
+Amount that was transferred from a profit distribution level of a Jackpot to another profit distribution level of the same or another Jackpot, for level 3.
+
+jackpotTransferredAmountLevel4	
+string or null
+Amount that was transferred from a profit distribution level of a Jackpot to another profit distribution level of the same or another Jackpot, for level 4.
+
+lastWinLevel1	
+string or null <date-time>
+The data and time of the last win for Jackpot level 1 if it was ever won.
+
+lastWinLevel2	
+string or null <date-time>
+The data and time of the last win for Jackpot level 2 if it was ever won.
+
+lastWinLevel3	
+string or null <date-time>
+The data and time of the last win for Jackpot level 3 if it was ever won.
+
+lastWinLevel4	
+string or null <date-time>
+The data and time of the last win for Jackpot level 4 if it was ever won.
+
+reportCreationDate
+required
+string <date>
+Date and time when the report is created in UTC.
+
+reportUpdateDate	
+string or null <date>
+Date and time when the report is updated in UTC, if any.
+
+400 Invalid parameters supplied
+401 Access token is missing or invalid
+
+post
+/progressive-jackpot-configuration
+
+Response samples
+200
+
+Copy
+Expand allCollapse all
+[
+{
+"jackpotId": "string",
+"jackpotType": "string",
+"name": "string",
+"state": "ACTIVE",
+"currency": "EUR",
+"jackpotLevels": 0,
+"startDate": "2020-01-01 12:00:00.000",
+"endDate": "2022-01-01 12:00:00.000",
+"avgContributionPercentageLevel1": "string",
+"avgContributionPercentageLevel2": "string",
+"avgContributionPercentageLevel3": "string",
+"avgContributionPercentageLevel4": "string",
+"games": [],
+"winAmountLevel1": "string",
+"winAmountLevel2": "string",
+"winAmountLevel3": "string",
+"winAmountLevel4": "string",
+"contributions": "string",
+"minBet": "string",
+"maxBet": "string",
+"minTrigger": "string",
+"maxTrigger": "string",
+"openingBalanceLevel1": "string",
+"openingBalanceLevel2": "string",
+"openingBalanceLevel3": "string",
+"openingBalanceLevel4": "string",
+"currentBalanceLevel1": "string",
+"currentBalanceLevel2": "string",
+"currentBalanceLevel3": "string",
+"currentBalanceLevel4": "string",
+"hiddenBalanceLevel1": "string",
+"hiddenBalanceLevel2": "string",
+"hiddenBalanceLevel3": "string",
+"hiddenBalanceLevel4": "string",
+"limitLevel1": "string",
+"limitLevel2": "string",
+"limitLevel3": "string",
+"limitLevel4": "string",
+"limitExcessLevel1": "string",
+"limitExcessLevel2": "string",
+"limitExcessLevel3": "string",
+"limitExcessLevel4": "string",
+"timeJackpotLimitCeilingLevel1": 0,
+"timeJackpotLimitCeilingLevel2": 0,
+"timeJackpotLimitCeilingLevel3": 0,
+"timeJackpotLimitCeilingLevel4": 0,
+"totalJackpotRakeLevel1": "string",
+"totalJackpotRakeLevel2": "string",
+"totalJackpotRakeLevel3": "string",
+"totalJackpotRakeLevel4": "string",
+"newJackpotId": 0,
+"jackpotTransferredDate": "2019-08-24",
+"jackpotTransferredAmountLevel1": "string",
+"jackpotTransferredAmountLevel2": "string",
+"jackpotTransferredAmountLevel3": "string",
+"jackpotTransferredAmountLevel4": "string",
+"lastWinLevel1": "2022-01-01 12:00:00.000",
+"lastWinLevel2": "2022-01-01 12:00:00.000",
+"lastWinLevel3": "2022-01-01 12:00:00.000",
+"lastWinLevel4": "2022-01-01 12:00:00.000",
+"reportCreationDate": "2019-08-24",
+"reportUpdateDate": "2019-08-24"
+}
+]
+Progressive jackpot winnings report
+Authorizations:
+AuthorizationAccessToken
+query Parameters
+dateFrom
+required
+string <date>
+Example: dateFrom=2023-08-01
+The start date of the report
+
+dateTo
+required
+string <date>
+Example: dateTo=2023-08-05
+The end date of the report
+
+limit
+required
+integer [ 1 .. 100 ]
+Example: limit=10
+Number of results to be returned by the report
+
+offset
+required
+integer >= 0
+Example: offset=0
+The position of the result from which the report should start
+
+Responses
+200 Report generated
+Response Schema: application/json
+Array 
+winId
+required
+string
+Static identifier of the player win.
+
+playerId
+required
+string
+Static identifier belonging to the winning Player.
+
+operatorPlayerId
+required
+string
+Static identifier belonging to the winning Player, as per the operator.
+
+sessionId
+required
+string
+Static identifier of the Session in which the Jackpot was won.
+
+operatorSessionId
+required
+string
+Static identifier of the Session in which the Jackpot was won, as per the operator.
+
+gameRoundId
+required
+string
+Static identifier of the Game Round in which the Jackpot was won.
+
+date
+required
+string <date-time>
+Date and time when the Jackpot was won in UTC.
+
+jackpotLevel
+required
+integer
+The Jackpot level that was won by the Player.
+
+currency
+required
+string^[A-Z]{3}$
+Three digit ISO code (ISO 4217) of the Jackpot currency.
+
+winAmount
+required
+string
+Amount that was won by the Player.
+
+levelOpeningBalance	
+string
+Starting balance of the jackpot level won.
+
+gameId
+required
+any
+Static identifier of the Game in which the Jackpot was won.
+
+gameName
+required
+string
+Name of the Game in which the Jackpot was won.
+
+jackpotId
+required
+string
+Static identifier assigned to the Jackpot.
+
+jackpotType
+required
+string
+Type of the Jackpot.
+
+jackpotName
+required
+string
+Name of the Jackpot.
+
+ptpSessionId	
+integer or null
+Unique identifier of a peer to peer Game Session, if any.
+
+pokerTournamentId	
+integer or null
+Unique Poker Tournament identifier, if any.
+
+processingEmployeeId	
+integer or null
+Unique identifer of the employee processing the award, if any.
+
+supervisorEmployeeId	
+integer or null
+Unique identifer of the supervisor confirming the award, if any.
+
+reportCreationDate
+required
+string <date>
+Date and time when the report was created in UTC.
+
+reportUpdateDate	
+string or null <date>
+Date and time when the report is updated in UTC, if any.
+
+400 Invalid parameters supplied
+401 Access token is missing or invalid
+
+post
+/progressive-jackpot-won
+
+Response samples
+200
+
+Copy
+Expand allCollapse all
+[
+{
+"winId": "string",
+"playerId": "string",
+"operatorPlayerId": "string",
+"sessionId": "string",
+"operatorSessionId": "string",
+"gameRoundId": "string",
+"date": "2020-01-01 12:00:00.000",
+"jackpotLevel": 0,
+"currency": "EUR",
+"winAmount": "string",
+"levelOpeningBalance": "string",
+"gameId": null,
+"gameName": "string",
+"jackpotId": "string",
+"jackpotType": "string",
+"jackpotName": "string",
+"ptpSessionId": 0,
+"pokerTournamentId": 0,
+"processingEmployeeId": 0,
+"supervisorEmployeeId": 0,
+"reportCreationDate": "2019-08-24",
+"reportUpdateDate": "2019-08-24"
+}
+]
+Progressive jackpot setup report
+Authorizations:
+AuthorizationAccessToken
+query Parameters
+date
+required
+string <date>
+Example: date=2023-08-01
+The date for which the setup should be displayed
+
+Responses
+200 Report generated
+400 Invalid parameters supplied
+401 Access token is missing or invalid
+
+post
+/progressive-jackpot-setup
+
+Response samples
+200
+
+Copy
+Expand allCollapse all
+[
+{
+"jackpotId": "string",
+"jackpotType": "string",
+"name": "string",
+"startDate": "2020-01-01 12:00:00.000",
+"currency": "EUR",
+"openingBalanceLevel1": "string",
+"openingBalanceLevel2": "string",
+"openingBalanceLevel3": "string",
+"openingBalanceLevel4": "string",
+"reportCreationDate": "2019-08-24",
+"reportUpdateDate": "2019-08-24"
+}
+]
+Generate game integrity check report
+Authorizations:
+AuthorizationAccessToken
+query Parameters
+date
+required
+string <date>
+Example: date=2023-08-01
+The date for which the checksum should be displayed
+
+Responses
+200 Report generated
+Response Schema: application/json
+Array 
+calculatedAt
+required
+string <date-time>
+The date and time the checksum was calculated at.
+
+manufacturer
+required
+string
+The entity that has generated the report.
+
+game
+required
+string
+The game associated to the checksum.
+
+gameId
+required
+any
+Static identifier of the Game associated to the checksum.
+
+module
+required
+string
+The game module associated to the checksum.
+
+sha1Checksum
+required
+string
+The sha-1 checksum for this game.
+
+md5Checksum
+required
+string
+The md-5 checksum for this game.
+
+state
+required
+string
+Enum: "SUCCESS" "FAILURE"
+The state of the checksum generation.
+
+reportCreationDate
+required
+string <date>
+Date and time when the report was created in UTC.
+
+reportUpdateDate	
+string or null <date>
+Date and time when the report is updated in UTC, if any.
+
+400 Invalid parameters supplied
+401 Access token is missing or invalid
+
+post
+/integrity-check
+
+Response samples
+200
+
+Copy
+Expand allCollapse all
+[
+{
+"calculatedAt": "2020-01-01 12:00:00.000",
+"manufacturer": "string",
+"game": "string",
+"gameId": null,
+"module": "string",
+"sha1Checksum": "string",
+"md5Checksum": "string",
+"state": "SUCCESS",
+"reportCreationDate": "2019-08-24",
+"reportUpdateDate": "2019-08-24"
+}
+]

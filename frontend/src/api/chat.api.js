@@ -1,0 +1,56 @@
+import { apiClient } from './client';
+
+export async function listMyChats({ limit = 50, offset = 0 } = {}) {
+  const { data } = await apiClient.get('/chats', { params: { limit, offset } });
+  return data.data.chats;
+}
+
+export async function getChat(chatId) {
+  const { data } = await apiClient.get(`/chats/${chatId}`);
+  return data.data.chat;
+}
+
+export async function getMembers(chatId) {
+  const { data } = await apiClient.get(`/chats/${chatId}/members`);
+  return data.data.members;
+}
+
+export async function createDirectChat(userId) {
+  const { data } = await apiClient.post('/chats/direct', { userId });
+  return data.data.chat;
+}
+
+export async function createGroupChat({ name, memberIds }) {
+  const { data } = await apiClient.post('/chats/group', { name, memberIds });
+  return data.data.chat;
+}
+
+export async function addMembers(chatId, memberIds) {
+  const { data } = await apiClient.post(`/chats/${chatId}/members`, { memberIds });
+  return data.data.members;
+}
+
+export async function removeMember(chatId, userId) {
+  const { data } = await apiClient.delete(`/chats/${chatId}/members/${userId}`);
+  return data.data;
+}
+
+export async function leaveChat(chatId) {
+  const { data } = await apiClient.post(`/chats/${chatId}/leave`);
+  return data.data;
+}
+
+export async function listRequestChats({ limit = 50, offset = 0 } = {}) {
+  const { data } = await apiClient.get('/chats/requests', { params: { limit, offset } });
+  return data.data.chats;
+}
+
+export async function acceptChatRequest(chatId) {
+  const { data } = await apiClient.post(`/chats/${chatId}/accept-request`);
+  return data.data.chat;
+}
+
+export async function rejectChatRequest(chatId) {
+  const { data } = await apiClient.post(`/chats/${chatId}/reject-request`);
+  return data.data;
+}
