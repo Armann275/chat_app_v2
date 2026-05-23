@@ -58,6 +58,8 @@ export async function listIncomingPending(toUserId, { limit = 50, offset = 0 } =
              fr.created_at, fr.responded_at,
              u.id AS peer_id,
              u.username, u.email, u.avatar_url, u.bio, u.last_seen_at,
+             u.custom_photo_url, u.avatar_glb_url, u.avatar_source,
+             u.email_verified_at,
              u.created_at AS user_created_at, u.updated_at AS user_updated_at
         FROM friend_requests fr
         JOIN users u ON u.id = fr.from_user_id
@@ -77,6 +79,8 @@ export async function listOutgoingPending(fromUserId, { limit = 50, offset = 0 }
              fr.created_at, fr.responded_at,
              u.id AS peer_id,
              u.username, u.email, u.avatar_url, u.bio, u.last_seen_at,
+             u.custom_photo_url, u.avatar_glb_url, u.avatar_source,
+             u.email_verified_at,
              u.created_at AS user_created_at, u.updated_at AS user_updated_at
         FROM friend_requests fr
         JOIN users u ON u.id = fr.to_user_id

@@ -22,3 +22,15 @@ export const loginValidator = [
   body('email').isEmail().withMessage('Must be a valid email').normalizeEmail(),
   body('password').isString().notEmpty().withMessage('Password is required'),
 ];
+
+export const verifyEmailValidator = [
+  body('userId').isUUID().withMessage('userId must be a valid UUID'),
+  body('code')
+    .isString()
+    .matches(/^\d{6}$/)
+    .withMessage('Code must be 6 digits'),
+];
+
+export const resendCodeValidator = [
+  body('userId').isUUID().withMessage('userId must be a valid UUID'),
+];

@@ -43,6 +43,16 @@ export const env = {
     refreshExpiresIn: process.env.JWT_REFRESH_EXPIRES_IN,
   },
 
+  smtp: {
+    host: process.env.SMTP_HOST || null,
+    port: process.env.SMTP_PORT ? Number(process.env.SMTP_PORT) : 587,
+    user: process.env.SMTP_USER || null,
+    pass: process.env.SMTP_PASS || null,
+    from: process.env.SMTP_FROM || null,
+  },
+
+  publicBaseUrl: process.env.PUBLIC_BASE_URL || '',
+
   logLevel: process.env.LOG_LEVEL,
   corsOrigin: process.env.CORS_ORIGIN,
 };

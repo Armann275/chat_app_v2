@@ -15,11 +15,24 @@ import { syncRouter } from './routes/sync.routes.js';
 import { uploadRouter, uploadFileRouter } from './routes/attachment.routes.js';
 import { friendRequestRouter, friendRouter } from './routes/friend.routes.js';
 import { privacyRouter } from './routes/privacy.routes.js';
+import { avatarRouter } from './routes/avatar.routes.js';
+import { locationRouter, mapRouter } from './routes/location.routes.js';
 
 export const app = express();
 
+const allowedOrigins = env.corsOrigin.split(',').map((s) => s.trim()).filter(Boolean);
+
+function corsOriginCheck(origin, cb) {
+  if (!origin) return cb(null, true);
+  if (allowedOrigins.includes(origin)) return cb(null, true);
+  if (!env.isProd && /^https?:\/\/localhost(:\d+)?$/.test(origin)) {
+    return cb(null, true);
+  }
+  return cb(new Error(`Origin ${origin} not allowed by CORS`));
+}
+
 app.use(helmet());
-app.use(cors({ origin: env.corsOrigin, credentials: true }));
+app.use(cors({ origin: corsOriginCheck, credentials: true }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
@@ -43,6 +56,9 @@ app.use('/uploads', uploadRouter);
 app.use('/friend-requests', friendRequestRouter);
 app.use('/friends', friendRouter);
 app.use('/me/privacy', privacyRouter);
+app.use('/me/avatar', avatarRouter);
+app.use('/me/location', locationRouter);
+app.use('/map', mapRouter);
 
 app.use(notFoundHandler);
 app.use(errorHandler);
