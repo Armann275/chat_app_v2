@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { X, UserPlus, LogOut, Trash2, Shield } from 'lucide-react';
+import { X, UserPlus, LogOut, Trash2, Shield, ShieldCheck, Pencil } from 'lucide-react';
+import EditChatModal from '@/components/chat/EditChatModal';
 import { toast } from 'sonner';
 import Avatar from '@/components/ui/Avatar';
 import Button from '@/components/ui/Button';
@@ -11,6 +12,7 @@ import {
   useAddMembersMutation,
   useRemoveMemberMutation,
   useLeaveChatMutation,
+  useSetMemberRoleMutation,
 } from '@/queries/chat.queries';
 import { useSearchUsersQuery } from '@/queries/user.queries';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
@@ -20,17 +22,29 @@ export default function MembersDrawer({ chat, open, onClose }) {
   const navigate = useNavigate();
   const me = useAuthStore((s) => s.user);
   const [adding, setAdding] = useState(false);
+  const [editing, setEditing] = useState(false);
   const [query, setQuery] = useState('');
   const debounced = useDebouncedValue(query.trim(), 250);
 
   const addMutation = useAddMembersMutation(chat.id);
   const removeMutation = useRemoveMemberMutation(chat.id);
   const leaveMutation = useLeaveChatMutation();
+  const roleMutation = useSetMemberRoleMutation(chat.id);
   const searchQuery = useSearchUsersQuery(debounced, { enabled: adding });
 
-  const isGroup = chat.type === 'group';
+  const isGroup = chat.type === 'group' || chat.type === 'channel';
   const myMembership = chat.members?.find((m) => m.userId === me?.id);
   const iAmAdmin = myMembership?.role === 'admin';
+
+  const handleRoleChange = async (member, role) => {
+    try {
+      await roleMutation.mutateAsync({ userId: member.userId, role });
+      toast.success(`${member.user?.username} is now ${role}`);
+    } catch (err) {
+      const message = err?.response?.data?.message ?? 'Could not change role.';
+      toast.error(message);
+    }
+  };
 
   const handleAdd = async (user) => {
     try {
@@ -88,15 +102,33 @@ export default function MembersDrawer({ chat, open, onClose }) {
           <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">
             Members
           </h3>
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded p-1 text-slate-500 hover:bg-slate-100 hover:text-slate-700 dark:text-slate-400 dark:hover:bg-slate-800"
-            aria-label="Close members panel"
-          >
-            <X className="h-4 w-4" />
-          </button>
+          <div className="flex items-center gap-1">
+            {isGroup && iAmAdmin && (
+              <button
+                type="button"
+                onClick={() => setEditing(true)}
+                className="rounded p-1 text-slate-500 hover:bg-slate-100 hover:text-slate-700 dark:text-slate-400 dark:hover:bg-slate-800"
+                aria-label="Edit chat"
+              >
+                <Pencil className="h-4 w-4" />
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded p-1 text-slate-500 hover:bg-slate-100 hover:text-slate-700 dark:text-slate-400 dark:hover:bg-slate-800"
+              aria-label="Close members panel"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
         </div>
+
+        {chat.description && (
+          <div className="border-b border-slate-200 px-4 py-3 text-xs text-slate-600 dark:border-slate-800 dark:text-slate-400">
+            {chat.description}
+          </div>
+        )}
 
         <div className="min-h-0 flex-1 overflow-y-auto p-3">
           <ul className="flex flex-col gap-1">
@@ -118,11 +150,27 @@ export default function MembersDrawer({ chat, open, onClose }) {
                       {member.role === 'admin' && (
                         <Shield className="h-3 w-3 text-indigo-500" aria-label="admin" />
                       )}
+                      {member.role === 'moderator' && (
+                        <ShieldCheck className="h-3 w-3 text-sky-500" aria-label="moderator" />
+                      )}
                     </p>
                     <p className="truncate text-xs text-slate-500 dark:text-slate-400">
                       {member.user?.email}
                     </p>
                   </div>
+                  {isGroup && !isMe && iAmAdmin && (
+                    <select
+                      value={member.role}
+                      onChange={(e) => handleRoleChange(member, e.target.value)}
+                      disabled={roleMutation.isPending}
+                      className="rounded border border-slate-200 bg-white px-1 py-0.5 text-xs text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
+                      aria-label={`Change role for ${member.user?.username}`}
+                    >
+                      <option value="member">member</option>
+                      <option value="moderator">moderator</option>
+                      <option value="admin">admin</option>
+                    </select>
+                  )}
                   {canRemove && (
                     <button
                       type="button"
@@ -226,6 +274,11 @@ export default function MembersDrawer({ chat, open, onClose }) {
           </div>
         )}
       </aside>
+      <EditChatModal
+        chat={chat}
+        open={editing}
+        onClose={() => setEditing(false)}
+      />
     </>
   );
 }

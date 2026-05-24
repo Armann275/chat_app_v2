@@ -5,7 +5,9 @@ import * as chatRepo from '../repositories/chat.repository.js';
 import * as linkPreviewService from './linkPreview.service.js';
 import * as attachmentService from './attachment.service.js';
 import * as chatService from './chat.service.js';
+import * as blockService from './block.service.js';
 import { emitToChat, emitToUser } from '../sockets/realtime.js';
+import { canPost } from '../utils/chatPermissions.js';
 import { NotFoundError, ForbiddenError, ConflictError } from '../errors/errors.js';
 
 const MENTION_RE = /@([a-zA-Z0-9_]{3,32})/g;
@@ -50,6 +52,21 @@ export async function sendMessage({
   const chat = await chatService.getChatForSending(chatId, senderId);
   if (chat.status === 'request' && chat.requested_by_user_id !== senderId) {
     throw new ForbiddenError('Accept this chat request before replying');
+  }
+
+  if (chat.type === 'channel') {
+    const membership = await chatRepo.getMembership(chatId, senderId);
+    if (!canPost(chat, membership?.role)) {
+      throw new ForbiddenError('Only moderators or admins can post in this channel');
+    }
+  }
+
+  if (chat.type === 'direct') {
+    const members = await chatRepo.getMembers(chatId);
+    const other = members.find((m) => m.user_id !== senderId);
+    if (other && await blockService.eitherSideBlocks(senderId, other.user_id)) {
+      throw new ForbiddenError('Cannot send messages to a blocked user');
+    }
   }
 
   let threadRootId = null;

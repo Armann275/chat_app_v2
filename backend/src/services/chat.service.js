@@ -2,8 +2,16 @@ import * as chatRepo from '../repositories/chat.repository.js';
 import * as userRepo from '../repositories/user.repository.js';
 import * as privacyService from './privacy.service.js';
 import * as friendService from './friend.service.js';
+import * as blockService from './block.service.js';
 import { emitToChat, emitToUser } from '../sockets/realtime.js';
 import { publicUser } from '../utils/mappers.js';
+import {
+  ROLES,
+  canEditChat,
+  canManageMembers,
+  canManageRoles,
+  rankOf,
+} from '../utils/chatPermissions.js';
 import {
   NotFoundError,
   ForbiddenError,
@@ -17,6 +25,8 @@ function toChatDto(row) {
     id: row.id,
     type: row.type,
     name: row.name ?? null,
+    description: row.description ?? null,
+    joinMode: row.join_mode ?? 'invite_only',
     createdBy: row.created_by,
     status: row.status ?? 'active',
     requestedByUserId: row.requested_by_user_id ?? null,
@@ -57,6 +67,10 @@ export async function createDirectChat(currentUserId, otherUserId) {
 
   const other = await userRepo.findById(otherUserId);
   if (!other) throw new NotFoundError('Target user not found');
+
+  if (await blockService.eitherSideBlocks(currentUserId, otherUserId)) {
+    throw new ForbiddenError('Cannot start a chat with a blocked user');
+  }
 
   const existing = await chatRepo.findDirectChatBetween(currentUserId, otherUserId);
   if (existing) return toChatDto(existing);
@@ -159,7 +173,28 @@ export async function getChatForSending(chatId, senderId) {
   return chat;
 }
 
-export async function createGroupChat(currentUserId, { name, memberIds }) {
+export async function createChannel(currentUserId, { name, description, memberIds = [] }) {
+  if (!name || name.trim().length === 0) {
+    throw new ValidationError('Channel name is required');
+  }
+  const uniqueMembers = Array.from(new Set([currentUserId, ...memberIds]));
+
+  const chat = await chatRepo.createChat({
+    type: 'channel',
+    name: name.trim(),
+    description: description?.trim() || null,
+    createdBy: currentUserId,
+  });
+
+  for (const userId of uniqueMembers) {
+    const role = userId === currentUserId ? ROLES.ADMIN : ROLES.MEMBER;
+    await chatRepo.addMember({ chatId: chat.id, userId, role });
+  }
+
+  return toChatDto(chat);
+}
+
+export async function createGroupChat(currentUserId, { name, memberIds, description }) {
   if (!name || name.trim().length === 0) {
     throw new ValidationError('Group name is required');
   }
@@ -170,15 +205,97 @@ export async function createGroupChat(currentUserId, { name, memberIds }) {
   const chat = await chatRepo.createChat({
     type: 'group',
     name: name.trim(),
+    description: description?.trim() || null,
     createdBy: currentUserId,
   });
 
   for (const userId of uniqueMembers) {
-    const role = userId === currentUserId ? 'admin' : 'member';
+    const role = userId === currentUserId ? ROLES.ADMIN : ROLES.MEMBER;
     await chatRepo.addMember({ chatId: chat.id, userId, role });
   }
 
   return toChatDto(chat);
+}
+
+export async function updateGroupInfo(currentUserId, chatId, { name, description }) {
+  const chat = await chatRepo.getChatById(chatId);
+  if (!chat) throw new NotFoundError('Chat not found');
+  if (chat.type === 'direct') {
+    throw new ValidationError('Direct chats cannot be edited');
+  }
+
+  const myMembership = await ensureMembership(chatId, currentUserId);
+  if (!canEditChat(myMembership.role)) {
+    throw new ForbiddenError('Only admins can edit chat info');
+  }
+
+  const cleanName =
+    typeof name === 'string' ? name.trim() : undefined;
+  if (cleanName !== undefined && cleanName.length === 0) {
+    throw new ValidationError('Group name cannot be empty');
+  }
+  const cleanDescription =
+    typeof description === 'string' ? description.trim() : undefined;
+
+  const updated = await chatRepo.updateChatInfo(chatId, {
+    name: cleanName,
+    description: cleanDescription,
+  });
+  const dto = toChatDto(updated);
+  emitToChat(chatId, 'chat:updated', { chat: dto });
+  return dto;
+}
+
+export async function setMemberRole(currentUserId, chatId, targetUserId, newRole) {
+  if (!Object.values(ROLES).includes(newRole)) {
+    throw new ValidationError(
+      `role must be one of: ${Object.values(ROLES).join(', ')}`,
+    );
+  }
+
+  const chat = await chatRepo.getChatById(chatId);
+  if (!chat) throw new NotFoundError('Chat not found');
+  if (chat.type === 'direct') {
+    throw new ValidationError('Direct chats have no roles');
+  }
+
+  const myMembership = await ensureMembership(chatId, currentUserId);
+  if (!canManageRoles(myMembership.role)) {
+    throw new ForbiddenError('Only admins can change member roles');
+  }
+
+  const targetMembership = await chatRepo.getMembership(chatId, targetUserId);
+  if (!targetMembership) throw new NotFoundError('Member not found in chat');
+
+  if (targetMembership.role === newRole) {
+    return memberRowToDto({
+      ...(await chatRepo.getMembers(chatId)).find(
+        (m) => m.user_id === targetUserId,
+      ),
+    });
+  }
+
+  // Can't demote yourself if you're the last admin; can't demote another last admin.
+  if (
+    targetMembership.role === ROLES.ADMIN &&
+    rankOf(newRole) < rankOf(ROLES.ADMIN)
+  ) {
+    const admins = await chatRepo.countAdmins(chatId);
+    if (admins <= 1) {
+      throw new ConflictError('Cannot demote the last admin');
+    }
+  }
+
+  await chatRepo.setMemberRole(chatId, targetUserId, newRole);
+  const members = await chatRepo.getMembers(chatId);
+  const updated = members.find((m) => m.user_id === targetUserId);
+  const dto = memberRowToDto(updated);
+  emitToChat(chatId, 'chat:member-role-changed', {
+    chatId,
+    userId: targetUserId,
+    role: newRole,
+  });
+  return dto;
 }
 
 export async function addMembers(currentUserId, chatId, userIds) {
@@ -205,8 +322,17 @@ export async function removeMember(currentUserId, chatId, targetUserId) {
   }
 
   const myMembership = await ensureMembership(chatId, currentUserId);
-  if (currentUserId !== targetUserId && myMembership.role !== 'admin') {
+  if (currentUserId !== targetUserId && !canManageMembers(myMembership.role)) {
     throw new ForbiddenError('Only admins can remove other members');
+  }
+
+  if (currentUserId === targetUserId && myMembership.role === ROLES.ADMIN) {
+    const admins = await chatRepo.countAdmins(chatId);
+    if (admins <= 1) {
+      throw new ConflictError(
+        'Last admin cannot leave; promote another admin first',
+      );
+    }
   }
 
   const removed = await chatRepo.removeMember(chatId, targetUserId);
@@ -218,6 +344,16 @@ export async function leaveChat(currentUserId, chatId) {
   if (!chat) throw new NotFoundError('Chat not found');
   if (chat.type !== 'group') {
     throw new ValidationError('You cannot leave a direct chat; delete it instead');
+  }
+
+  const myMembership = await chatRepo.getMembership(chatId, currentUserId);
+  if (myMembership?.role === ROLES.ADMIN) {
+    const admins = await chatRepo.countAdmins(chatId);
+    if (admins <= 1) {
+      throw new ConflictError(
+        'Last admin cannot leave; promote another admin first',
+      );
+    }
   }
 
   const removed = await chatRepo.removeMember(chatId, currentUserId);

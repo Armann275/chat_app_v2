@@ -10,6 +10,7 @@ import StarredPage from '@/pages/StarredPage';
 import NotificationsPage from '@/pages/NotificationsPage';
 import FriendsPage from '@/pages/FriendsPage';
 import MapPage from '@/pages/MapPage';
+import InviteRedeemPage from '@/pages/InviteRedeemPage';
 import ProtectedRoute from '@/routes/ProtectedRoute';
 import GuestRoute from '@/routes/GuestRoute';
 import AppShell from '@/components/layout/AppShell';
@@ -27,6 +28,7 @@ export const router = createBrowserRouter([
     element: <ProtectedRoute />,
     children: [
       { path: '/avatar-setup', element: <AvatarSetupPage /> },
+      { path: '/invite/:code', element: <InviteRedeemPage /> },
       {
         element: <AppShell />,
         children: [

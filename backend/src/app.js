@@ -17,6 +17,11 @@ import { friendRequestRouter, friendRouter } from './routes/friend.routes.js';
 import { privacyRouter } from './routes/privacy.routes.js';
 import { avatarRouter } from './routes/avatar.routes.js';
 import { locationRouter, mapRouter } from './routes/location.routes.js';
+import { chatInviteRouter, inviteRedeemRouter } from './routes/inviteLink.routes.js';
+import { chatPollRouter, pollRouter } from './routes/poll.routes.js';
+import { userBlockRouter, meBlockRouter } from './routes/block.routes.js';
+import { sessionRouter } from './routes/session.routes.js';
+import { totpRouter } from './routes/totp.routes.js';
 
 export const app = express();
 
@@ -48,7 +53,11 @@ app.use('/auth', authRouter);
 app.use('/users', userRouter);
 app.use('/chats', chatRouter);
 app.use('/chats/:id/messages', chatMessageRouter);
+app.use('/chats/:id', chatInviteRouter);
+app.use('/chats/:id', chatPollRouter);
 app.use('/chats/:id', chatRootRouter);
+app.use('/invites', inviteRedeemRouter);
+app.use('/polls', pollRouter);
 app.use('/messages', messageRouter);
 app.use('/sync', syncRouter);
 app.use('/uploads/files', uploadFileRouter);
@@ -58,6 +67,10 @@ app.use('/friends', friendRouter);
 app.use('/me/privacy', privacyRouter);
 app.use('/me/avatar', avatarRouter);
 app.use('/me/location', locationRouter);
+app.use('/me', meBlockRouter);
+app.use('/me/sessions', sessionRouter);
+app.use('/me/2fa', totpRouter);
+app.use('/users/:id', userBlockRouter);
 app.use('/map', mapRouter);
 
 app.use(notFoundHandler);

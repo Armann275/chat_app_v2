@@ -5,6 +5,8 @@ import { pinKeys } from '@/queries/pin.queries';
 import { friendKeys } from '@/queries/friend.queries';
 import { privacyKeys } from '@/queries/privacy.queries';
 import { appendToThreadCache } from '@/queries/thread.queries';
+import { joinRequestKeys } from '@/queries/joinRequest.queries';
+import { pollKeys } from '@/queries/poll.queries';
 import { useSocketStore } from '@/stores/socketStore';
 import { useLinkPreviewStore } from '@/stores/linkPreviewStore';
 import { useMapStore } from '@/stores/mapStore';
@@ -193,6 +195,66 @@ export function registerSocketHandlers(socket, queryClient) {
     queryClient.invalidateQueries({ queryKey: chatKeys.detail(chatId) });
     queryClient.invalidateQueries({ queryKey: chatKeys.list });
     queryClient.invalidateQueries({ queryKey: chatKeys.requests });
+  });
+
+  socket.on(SocketEvents.ChatUpdated, ({ chat }) => {
+    if (!chat?.id) return;
+    queryClient.setQueryData(chatKeys.detail(chat.id), (prev) =>
+      prev ? { ...prev, ...chat } : prev,
+    );
+    queryClient.invalidateQueries({ queryKey: chatKeys.list });
+  });
+
+  socket.on(SocketEvents.ChatMemberRoleChanged, ({ chatId }) => {
+    queryClient.invalidateQueries({ queryKey: chatKeys.detail(chatId) });
+    queryClient.invalidateQueries({ queryKey: chatKeys.members(chatId) });
+  });
+
+  socket.on(SocketEvents.ChatMemberAdded, ({ chatId }) => {
+    queryClient.invalidateQueries({ queryKey: chatKeys.detail(chatId) });
+    queryClient.invalidateQueries({ queryKey: chatKeys.members(chatId) });
+    queryClient.invalidateQueries({ queryKey: joinRequestKeys.list(chatId) });
+  });
+
+  socket.on(SocketEvents.ChatJoined, ({ chatId }) => {
+    queryClient.invalidateQueries({ queryKey: chatKeys.list });
+    if (chatId) queryClient.invalidateQueries({ queryKey: chatKeys.detail(chatId) });
+  });
+
+  socket.on(SocketEvents.ChatJoinRequest, ({ chatId }) => {
+    queryClient.invalidateQueries({ queryKey: joinRequestKeys.list(chatId) });
+  });
+
+  socket.on(SocketEvents.ChatJoinApproved, ({ chatId }) => {
+    queryClient.invalidateQueries({ queryKey: chatKeys.list });
+    toast.success('Your join request was approved');
+  });
+
+  socket.on(SocketEvents.ChatJoinRejected, () => {
+    toast('Your join request was declined');
+  });
+
+  socket.on(SocketEvents.PollCreated, (poll) => {
+    queryClient.setQueryData(pollKeys.list(poll.chatId), (prev) =>
+      prev ? [poll, ...prev.filter((p) => p.id !== poll.id)] : [poll],
+    );
+    queryClient.setQueryData(pollKeys.detail(poll.id), poll);
+  });
+
+  socket.on(SocketEvents.PollVoted, ({ pollId }) => {
+    queryClient.invalidateQueries({ queryKey: pollKeys.detail(pollId) });
+    const lists = queryClient.getQueriesData({ queryKey: ['polls', 'list'] });
+    for (const [key] of lists) {
+      queryClient.invalidateQueries({ queryKey: key });
+    }
+  });
+
+  socket.on(SocketEvents.PollClosed, ({ pollId }) => {
+    queryClient.invalidateQueries({ queryKey: pollKeys.detail(pollId) });
+    const lists = queryClient.getQueriesData({ queryKey: ['polls', 'list'] });
+    for (const [key] of lists) {
+      queryClient.invalidateQueries({ queryKey: key });
+    }
   });
 
   socket.on(SocketEvents.FriendLocation, (payload) => {

@@ -1,4 +1,4 @@
-import { Users, User, Settings, Pin } from 'lucide-react';
+import { Users, User, Settings, Pin, Link as LinkIcon, UserCheck, BarChart3, Megaphone } from 'lucide-react';
 import Avatar from '@/components/ui/Avatar';
 import Button from '@/components/ui/Button';
 import PresenceDot from '@/components/chat/PresenceDot';
@@ -9,19 +9,28 @@ function directOther(chat, myId) {
   return chat.members?.find((m) => m.userId !== myId);
 }
 
-export default function ChatHeader({ chat, onOpenMembers, onOpenPins, pinnedCount = 0 }) {
+export default function ChatHeader({
+  chat, onOpenMembers, onOpenPins, pinnedCount = 0,
+  onOpenInviteLinks, onOpenJoinRequests, onOpenPolls,
+  pendingJoinCount = 0,
+}) {
   const me = useAuthStore((s) => s.user);
 
-  const isGroup = chat.type === 'group';
-  const other = isGroup ? null : directOther(chat, me?.id);
-  const title = isGroup
-    ? chat.name ?? 'Untitled group'
+  const isDirect = chat.type === 'direct';
+  const isChannel = chat.type === 'channel';
+  const isGroupLike = !isDirect;
+  const other = isDirect ? directOther(chat, me?.id) : null;
+  const title = isGroupLike
+    ? chat.name ?? (isChannel ? 'Untitled channel' : 'Untitled group')
     : other?.user?.username ?? 'Direct chat';
   const memberCount = chat.members?.length ?? 0;
-  const Icon = isGroup ? Users : User;
-  const subtitle = isGroup
-    ? `${memberCount} member${memberCount === 1 ? '' : 's'}`
+  const Icon = isChannel ? Megaphone : isGroupLike ? Users : User;
+  const subtitle = isGroupLike
+    ? `${isChannel ? 'Channel · ' : ''}${memberCount} member${memberCount === 1 ? '' : 's'}`
     : 'Direct chat';
+
+  const myMembership = chat.members?.find((m) => m.userId === me?.id);
+  const iAmAdmin = myMembership?.role === 'admin';
 
   return (
     <header className="flex h-14 items-center justify-between gap-3 border-b border-slate-200 bg-white px-4 dark:border-slate-800 dark:bg-slate-900">
@@ -50,6 +59,34 @@ export default function ChatHeader({ chat, onOpenMembers, onOpenPins, pinnedCoun
             <span className="hidden sm:inline">
               Pinned{pinnedCount > 0 ? ` · ${pinnedCount}` : ''}
             </span>
+          </Button>
+        )}
+        {isGroupLike && onOpenPolls && (
+          <Button variant="secondary" size="sm" onClick={onOpenPolls}>
+            <BarChart3 className="h-4 w-4" />
+            <span className="hidden sm:inline">Polls</span>
+          </Button>
+        )}
+        {isGroupLike && iAmAdmin && onOpenInviteLinks && (
+          <Button variant="secondary" size="sm" onClick={onOpenInviteLinks}>
+            <LinkIcon className="h-4 w-4" />
+            <span className="hidden sm:inline">Invites</span>
+          </Button>
+        )}
+        {isGroupLike && iAmAdmin && onOpenJoinRequests && (
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={onOpenJoinRequests}
+            className="relative"
+          >
+            <UserCheck className="h-4 w-4" />
+            <span className="hidden sm:inline">Requests</span>
+            {pendingJoinCount > 0 && (
+              <span className="absolute -right-1 -top-1 inline-flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-medium text-white">
+                {pendingJoinCount}
+              </span>
+            )}
           </Button>
         )}
         <Button variant="secondary" size="sm" onClick={onOpenMembers}>

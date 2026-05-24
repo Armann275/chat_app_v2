@@ -10,10 +10,55 @@ export const createGroupChatValidator = [
     .trim()
     .isLength({ min: 1, max: 100 })
     .withMessage('name must be 1-100 characters'),
+  body('description')
+    .optional({ nullable: true })
+    .isString()
+    .isLength({ max: 1000 })
+    .withMessage('description must be at most 1000 characters'),
   body('memberIds')
     .isArray({ min: 1 })
     .withMessage('memberIds must be a non-empty array'),
   body('memberIds.*').isUUID().withMessage('memberIds must contain UUIDs'),
+];
+
+export const createChannelValidator = [
+  body('name')
+    .isString()
+    .trim()
+    .isLength({ min: 1, max: 100 })
+    .withMessage('name must be 1-100 characters'),
+  body('description')
+    .optional({ nullable: true })
+    .isString()
+    .isLength({ max: 1000 }),
+  body('memberIds')
+    .optional()
+    .isArray()
+    .withMessage('memberIds must be an array'),
+  body('memberIds.*').optional().isUUID(),
+];
+
+export const updateGroupValidator = [
+  param('id').isUUID(),
+  body('name')
+    .optional()
+    .isString()
+    .trim()
+    .isLength({ min: 1, max: 100 })
+    .withMessage('name must be 1-100 characters'),
+  body('description')
+    .optional({ nullable: true })
+    .isString()
+    .isLength({ max: 1000 })
+    .withMessage('description must be at most 1000 characters'),
+];
+
+export const setMemberRoleValidator = [
+  param('id').isUUID(),
+  param('userId').isUUID(),
+  body('role')
+    .isIn(['member', 'moderator', 'admin'])
+    .withMessage('role must be one of: member, moderator, admin'),
 ];
 
 export const addMembersValidator = [

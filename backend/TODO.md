@@ -186,6 +186,112 @@
 
 ---
 
+## Phase 16 — Group admin (Tier 2)
+
+Group features from `docs/features.md` Tier 2: granular roles, invite links, join requests, channels, polls, group description.
+
+### 16.1 — Roles, permissions, group description
+
+- [x] Migration: extend `chat_members.role` CHECK to include `moderator`; add `chats.description` (text, nullable, ≤1000 chars); add `chats.join_mode` (varchar(16), default `'invite_only'`, CHECK in `('open','request','invite_only','closed')`)
+- [x] Update `chat.entity.js` (chatMember entity needs no schema change)
+- [x] Repo: `updateChatInfo(chatId, { name, description })`, `setMemberRole(chatId, userId, role)`, `countAdmins(chatId)`
+- [x] Service `chat.service.js`: `updateGroupInfo` (admin only), `setMemberRole` (admin only, cannot demote last admin); update `createGroupChat` to accept `description`
+- [x] Add helper `utils/chatPermissions.js`: `canEditChat`, `canManageMembers`, `canPin`, `canPost`, `canManageRoles`, `canManageInvites`
+- [x] Wire helper into chat.service (`removeMember`, `leaveChat`) and pin.service (`canPin`)
+- [x] Validators: `updateGroupValidator`, `setMemberRoleValidator`
+- [x] Controller + routes: `PATCH /chats/:id`, `PATCH /chats/:id/members/:userId/role`
+- [x] Real-time: emit `chat:updated`, `chat:member-role-changed` to chat room
+- [x] Unit tests for `setMemberRole` and `updateGroupInfo`
+
+### 16.2 — Invite links + join requests
+
+- [x] Migration: `chat_invite_links` + `chat_join_requests` with FKs, status CHECK, and indexes
+- [x] Entities for both
+- [x] Repos: invite-link CRUD + `incrementUses`; join-request upsertPending/find/listPending/decide
+- [x] Service `inviteLink.service.js`: `create`, `list`, `revoke`, `redeem(code, userId)` — honors `join_mode`, expiry, max_uses
+- [x] Service `joinRequest.service.js`: `request` (open → instant join; request → pending), `listPending`, `approve`, `reject`
+- [x] Routes: `POST/GET /chats/:id/invite-links`, `DELETE /chats/:id/invite-links/:linkId`, `POST /invites/:code/join`, `POST/GET /chats/:id/join-requests`, `POST /chats/:id/join-requests/:userId/approve|reject`
+- [x] Real-time: `chat:join-request`, `chat:join-approved/rejected`, `chat:member-added`, `chat:joined`
+- [x] Unit tests (25 across both services)
+
+### 16.3 — Channels (broadcast)
+
+- [x] Migration: allow `'channel'` in `chats.type` CHECK
+- [x] `createChannel` service entry point
+- [x] `message.service.sendMessage` enforces `canPost(chat, role)` — non-moderator/admin posts in channels are 403
+- [x] Validators + controller + route: `POST /chats/channel`
+- [x] Unit tests (channel-creation + posting gate)
+
+### 16.4 — Polls
+
+- [x] Migration: `polls`, `poll_options`, `poll_votes` with FKs and indexes. Polls are standalone (not message-linked) to keep schema simple
+- [x] Entities for all three
+- [x] Repo: `createPollWithOptions` (txn), `findById`, `listByChat`, `listOptions`, `tally`, `listUserVotes`, `findOption`, `addVote` (replace on single-choice), `removeVote`, `close`
+- [x] Service: `createPoll`, `listForChat`, `getPoll`, `vote`, `unvote`, `closePoll`
+- [x] Validators + controller + routes: `POST/GET /chats/:id/polls`, `GET /polls/:pollId`, `POST/DELETE /polls/:pollId/options/:optionId/vote`, `POST /polls/:pollId/close`
+- [x] Real-time: `poll:created`, `poll:voted`, `poll:closed`
+- [x] Unit tests (14 covering create, vote replace/multi, close authz)
+
+---
+
+## Phase 17 — Security & calls (Tier 2)
+
+Remaining Tier 2 backend items that are tractable without new infrastructure. Out of scope for now: E2E encryption (libsignal), encrypted backups, SFU-backed group calls, bot API, OAuth integrations.
+
+### 17.1 — Block & report user
+
+- [ ] Migration: `user_blocks` (blocker_id, blocked_id, created_at) PK(blocker_id, blocked_id); `user_reports` (id, reporter_id, reported_id, reason, details, created_at, resolved_at)
+- [ ] Entities + repos
+- [ ] Service `block.service.js`: `block`, `unblock`, `listBlocked`, `isBlocked`
+- [ ] Service `report.service.js`: `report` (with rate-limit-friendly upsert per pair)
+- [ ] Hook into `chat.service.createDirectChat` to refuse if either side has blocked
+- [ ] Hook into `message.service.sendMessage` to refuse if recipient(s) blocked sender (direct chats only)
+- [ ] Routes: `POST /users/:id/block`, `DELETE /users/:id/block`, `GET /me/blocks`, `POST /users/:id/report`
+- [ ] Unit tests
+
+### 17.2 — Session management
+
+- [ ] Extend `refresh_tokens` with `user_agent`, `ip`, `last_used_at`
+- [ ] Repo + service `session.service.js`: `listMine`, `revoke(sessionId)`, `revokeAllExceptCurrent`
+- [ ] Capture UA/IP in auth.service.login + refresh, update `last_used_at` on refresh
+- [ ] Routes: `GET /me/sessions`, `DELETE /me/sessions/:id`, `POST /me/sessions/revoke-others`
+- [ ] Unit tests
+
+### 17.3 — 2FA (TOTP)
+
+- [ ] Add `otplib` dependency
+- [ ] Migration: add `users.totp_secret` (text, nullable), `users.totp_enabled_at` (timestamptz, nullable), `users.totp_backup_codes` (jsonb of hashed codes)
+- [ ] Service `totp.service.js`: `beginSetup` (returns secret + otpauth URI), `enable(code)`, `disable(code)`, `verify(userId, code)`
+- [ ] Update auth.service.login: if user has TOTP enabled, return a `requires2fa: true, twoFactorToken` short-lived token instead of tokens; new endpoint exchanges 2FA code for tokens
+- [ ] Routes: `POST /me/2fa/setup`, `POST /me/2fa/enable`, `POST /me/2fa/disable`, `POST /auth/2fa/verify`, `GET /me/2fa/backup-codes/regenerate`
+- [ ] Unit tests
+
+### 17.4 — Disappearing messages
+
+- [ ] Migration: `chats.disappearing_seconds` (int, nullable) — when set, messages expire after N seconds
+- [ ] Update `message.repository.getByChat` and search to filter out expired messages
+- [ ] Settable via existing chat update endpoint (extend `updateGroupInfo` for groups/channels; allow on direct chats via a new endpoint)
+- [ ] Real-time: `chat:disappearing-updated`
+- [ ] Unit tests
+
+### 17.5 — Privacy controls expansion
+
+- [ ] Migration: extend `user_privacy_settings` with `last_seen_visibility`, `profile_photo_visibility` (varchar, default `'everyone'`, CHECK in `('everyone','friends','nobody')`)
+- [ ] Update privacy.service: include the new fields in DTO + update; respect when shaping `publicUser` (mask `lastSeenAt` and `displayAvatarUrl` if viewer not allowed)
+- [ ] Helper `applyPrivacy(viewerId, profileUser, settings, friendship)` used by user controllers and chat member listings
+- [ ] Unit tests
+
+### 17.6 — Call signaling + call history (no media server)
+
+- [ ] Migration: `calls` (id, chat_id, initiator_id, status, started_at, ended_at, type ['voice'|'video']); `call_participants` (call_id, user_id, joined_at, left_at) PK
+- [ ] Service `call.service.js`: `initiate(currentUser, chatId, type)` (direct chats only — group calls need SFU), `accept(callId)`, `reject(callId)`, `hangup(callId)`, `listHistory()`
+- [ ] Socket events for WebRTC handshake: `call:offer` (sdp), `call:answer` (sdp), `call:ice-candidate`, `call:ended`, `call:missed`
+- [ ] Routes: `POST /chats/:id/calls`, `POST /calls/:id/accept|reject|hangup`, `GET /me/calls`
+- [ ] Auto-mark `missed` if not accepted within 30s (in-process timer)
+- [ ] Unit tests
+
+---
+
 ## Definition of Done (per task)
 
 A task is `[x]` only when:

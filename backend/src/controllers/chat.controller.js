@@ -5,12 +5,40 @@ export async function createDirect(req, res) {
   res.status(201).json({ success: true, data: { chat } });
 }
 
-export async function createGroup(req, res) {
-  const chat = await chatService.createGroupChat(req.user.id, {
+export async function createChannel(req, res) {
+  const chat = await chatService.createChannel(req.user.id, {
     name: req.body.name,
+    description: req.body.description,
     memberIds: req.body.memberIds,
   });
   res.status(201).json({ success: true, data: { chat } });
+}
+
+export async function createGroup(req, res) {
+  const chat = await chatService.createGroupChat(req.user.id, {
+    name: req.body.name,
+    description: req.body.description,
+    memberIds: req.body.memberIds,
+  });
+  res.status(201).json({ success: true, data: { chat } });
+}
+
+export async function updateGroup(req, res) {
+  const chat = await chatService.updateGroupInfo(req.user.id, req.params.id, {
+    name: req.body.name,
+    description: req.body.description,
+  });
+  res.json({ success: true, data: { chat } });
+}
+
+export async function setMemberRole(req, res) {
+  const member = await chatService.setMemberRole(
+    req.user.id,
+    req.params.id,
+    req.params.userId,
+    req.body.role,
+  );
+  res.json({ success: true, data: { member } });
 }
 
 export async function listMine(req, res) {

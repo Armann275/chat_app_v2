@@ -6,11 +6,13 @@ const pinRepoMock = {
   listForChat: jest.fn(),
 };
 const messageRepoMock = { getById: jest.fn() };
+const chatRepoMock = { getChatById: jest.fn() };
 const chatServiceMock = { assertMembership: jest.fn() };
 const realtimeMock = { emitToChat: jest.fn(), setRealtimeEmitter: jest.fn() };
 
 jest.unstable_mockModule('../../../src/repositories/pin.repository.js', () => pinRepoMock);
 jest.unstable_mockModule('../../../src/repositories/message.repository.js', () => messageRepoMock);
+jest.unstable_mockModule('../../../src/repositories/chat.repository.js', () => chatRepoMock);
 jest.unstable_mockModule('../../../src/services/chat.service.js', () => chatServiceMock);
 jest.unstable_mockModule('../../../src/sockets/realtime.js', () => realtimeMock);
 
@@ -28,7 +30,8 @@ const baseMessage = {
 
 beforeEach(() => {
   jest.clearAllMocks();
-  chatServiceMock.assertMembership.mockResolvedValue({});
+  chatServiceMock.assertMembership.mockResolvedValue({ role: 'admin' });
+  chatRepoMock.getChatById.mockResolvedValue({ id: CHAT, type: 'group' });
 });
 
 describe('pin.service', () => {

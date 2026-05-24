@@ -9,6 +9,9 @@ const chatRepoMock = {
   getMembership: jest.fn(),
   getUserChats: jest.fn(),
   findDirectChatBetween: jest.fn(),
+  updateChatInfo: jest.fn(),
+  setMemberRole: jest.fn(),
+  countAdmins: jest.fn().mockResolvedValue(2),
 };
 
 const userRepoMock = {
@@ -101,6 +104,7 @@ describe('chat.service.createGroupChat', () => {
     expect(chatRepoMock.createChat).toHaveBeenCalledWith({
       type: 'group',
       name: 'My Group',
+      description: null,
       createdBy: ME,
     });
     expect(chatRepoMock.addMember).toHaveBeenCalledTimes(3);
@@ -286,6 +290,165 @@ describe('chat.service.listMyChats', () => {
     ]);
     const list = await chatService.listMyChats(ME);
     expect(list[0].otherUser).toMatchObject({ id: 'u2', username: 'bob' });
+  });
+});
+
+describe('chat.service.createChannel', () => {
+  test('rejects empty name', async () => {
+    await expect(
+      chatService.createChannel(ME, { name: '  ' }),
+    ).rejects.toMatchObject({ statusCode: 400 });
+  });
+
+  test('creates channel with creator as admin', async () => {
+    chatRepoMock.createChat.mockResolvedValue({
+      id: 'ch1', type: 'channel', name: 'News', description: null,
+      join_mode: 'invite_only', created_by: ME, status: 'active',
+      created_at: new Date(),
+    });
+
+    const dto = await chatService.createChannel(ME, {
+      name: 'News', memberIds: [OTHER],
+    });
+    expect(chatRepoMock.createChat).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'channel', name: 'News' }),
+    );
+    const roles = chatRepoMock.addMember.mock.calls.map((c) => c[0]);
+    const me = roles.find((r) => r.userId === ME);
+    const other = roles.find((r) => r.userId === OTHER);
+    expect(me.role).toBe('admin');
+    expect(other.role).toBe('member');
+    expect(dto.type).toBe('channel');
+  });
+});
+
+describe('chat.service.updateGroupInfo', () => {
+  test('rejects when chat missing', async () => {
+    chatRepoMock.getChatById.mockResolvedValue(null);
+    await expect(
+      chatService.updateGroupInfo(ME, 'gone', { name: 'X' }),
+    ).rejects.toMatchObject({ statusCode: 404 });
+  });
+
+  test('rejects on direct chat', async () => {
+    chatRepoMock.getChatById.mockResolvedValue({ id: 'd1', type: 'direct' });
+    await expect(
+      chatService.updateGroupInfo(ME, 'd1', { name: 'X' }),
+    ).rejects.toMatchObject({ statusCode: 400 });
+  });
+
+  test('rejects non-admin', async () => {
+    chatRepoMock.getChatById.mockResolvedValue({ id: 'g1', type: 'group' });
+    chatRepoMock.getMembership.mockResolvedValue({
+      chat_id: 'g1', user_id: ME, role: 'member',
+    });
+    await expect(
+      chatService.updateGroupInfo(ME, 'g1', { name: 'X' }),
+    ).rejects.toMatchObject({ statusCode: 403 });
+  });
+
+  test('rejects empty name', async () => {
+    chatRepoMock.getChatById.mockResolvedValue({ id: 'g1', type: 'group' });
+    chatRepoMock.getMembership.mockResolvedValue({
+      chat_id: 'g1', user_id: ME, role: 'admin',
+    });
+    await expect(
+      chatService.updateGroupInfo(ME, 'g1', { name: '   ' }),
+    ).rejects.toMatchObject({ statusCode: 400 });
+  });
+
+  test('admin updates name and description', async () => {
+    chatRepoMock.getChatById.mockResolvedValue({ id: 'g1', type: 'group' });
+    chatRepoMock.getMembership.mockResolvedValue({
+      chat_id: 'g1', user_id: ME, role: 'admin',
+    });
+    chatRepoMock.updateChatInfo.mockResolvedValue({
+      id: 'g1', type: 'group', name: 'New', description: 'Desc',
+      join_mode: 'invite_only', created_by: ME, status: 'active', created_at: new Date(),
+    });
+
+    const dto = await chatService.updateGroupInfo(ME, 'g1', {
+      name: '  New  ', description: '  Desc  ',
+    });
+    expect(chatRepoMock.updateChatInfo).toHaveBeenCalledWith('g1', {
+      name: 'New', description: 'Desc',
+    });
+    expect(dto.name).toBe('New');
+    expect(dto.description).toBe('Desc');
+  });
+
+  test('moderator cannot edit', async () => {
+    chatRepoMock.getChatById.mockResolvedValue({ id: 'g1', type: 'group' });
+    chatRepoMock.getMembership.mockResolvedValue({
+      chat_id: 'g1', user_id: ME, role: 'moderator',
+    });
+    await expect(
+      chatService.updateGroupInfo(ME, 'g1', { name: 'X' }),
+    ).rejects.toMatchObject({ statusCode: 403 });
+  });
+});
+
+describe('chat.service.setMemberRole', () => {
+  test('rejects invalid role', async () => {
+    await expect(
+      chatService.setMemberRole(ME, 'g1', OTHER, 'owner'),
+    ).rejects.toMatchObject({ statusCode: 400 });
+  });
+
+  test('rejects on direct chat', async () => {
+    chatRepoMock.getChatById.mockResolvedValue({ id: 'd1', type: 'direct' });
+    await expect(
+      chatService.setMemberRole(ME, 'd1', OTHER, 'admin'),
+    ).rejects.toMatchObject({ statusCode: 400 });
+  });
+
+  test('non-admin caller is forbidden', async () => {
+    chatRepoMock.getChatById.mockResolvedValue({ id: 'g1', type: 'group' });
+    chatRepoMock.getMembership.mockResolvedValue({
+      chat_id: 'g1', user_id: ME, role: 'moderator',
+    });
+    await expect(
+      chatService.setMemberRole(ME, 'g1', OTHER, 'admin'),
+    ).rejects.toMatchObject({ statusCode: 403 });
+  });
+
+  test('target not found', async () => {
+    chatRepoMock.getChatById.mockResolvedValue({ id: 'g1', type: 'group' });
+    chatRepoMock.getMembership
+      .mockResolvedValueOnce({ chat_id: 'g1', user_id: ME, role: 'admin' })
+      .mockResolvedValueOnce(null);
+    await expect(
+      chatService.setMemberRole(ME, 'g1', OTHER, 'admin'),
+    ).rejects.toMatchObject({ statusCode: 404 });
+  });
+
+  test('cannot demote last admin', async () => {
+    chatRepoMock.getChatById.mockResolvedValue({ id: 'g1', type: 'group' });
+    chatRepoMock.getMembership
+      .mockResolvedValueOnce({ chat_id: 'g1', user_id: ME, role: 'admin' })
+      .mockResolvedValueOnce({ chat_id: 'g1', user_id: OTHER, role: 'admin' });
+    chatRepoMock.countAdmins.mockResolvedValueOnce(1);
+
+    await expect(
+      chatService.setMemberRole(ME, 'g1', OTHER, 'member'),
+    ).rejects.toMatchObject({ statusCode: 409 });
+  });
+
+  test('admin promotes member to moderator', async () => {
+    chatRepoMock.getChatById.mockResolvedValue({ id: 'g1', type: 'group' });
+    chatRepoMock.getMembership
+      .mockResolvedValueOnce({ chat_id: 'g1', user_id: ME, role: 'admin' })
+      .mockResolvedValueOnce({ chat_id: 'g1', user_id: OTHER, role: 'member' });
+    chatRepoMock.setMemberRole.mockResolvedValue({
+      chat_id: 'g1', user_id: OTHER, role: 'moderator', joined_at: new Date(),
+    });
+    chatRepoMock.getMembers.mockResolvedValue([
+      makeMemberRow(OTHER, 'moderator'),
+    ]);
+
+    const dto = await chatService.setMemberRole(ME, 'g1', OTHER, 'moderator');
+    expect(chatRepoMock.setMemberRole).toHaveBeenCalledWith('g1', OTHER, 'moderator');
+    expect(dto.role).toBe('moderator');
   });
 });
 

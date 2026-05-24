@@ -8,17 +8,65 @@ export async function createChat({
   status = 'active',
   requestedByUserId = null,
   requestTargetUserId = null,
+  description = null,
+  joinMode = 'invite_only',
 }) {
   const result = await dataSource.query(
     `
-      INSERT INTO chats (type, name, created_by, status, requested_by_user_id, request_target_user_id)
-      VALUES ($1, $2, $3, $4, $5, $6)
-      RETURNING id, type, name, created_by, status,
+      INSERT INTO chats (type, name, description, join_mode, created_by,
+                         status, requested_by_user_id, request_target_user_id)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      RETURNING id, type, name, description, join_mode, disappearing_seconds, created_by, status,
                 requested_by_user_id, request_target_user_id, created_at
     `,
-    [type, name ?? null, createdBy, status, requestedByUserId, requestTargetUserId],
+    [
+      type,
+      name ?? null,
+      description,
+      joinMode,
+      createdBy,
+      status,
+      requestedByUserId,
+      requestTargetUserId,
+    ],
   );
   return firstRow(result);
+}
+
+export async function updateChatInfo(chatId, { name, description }) {
+  const result = await dataSource.query(
+    `
+      UPDATE chats
+         SET name = COALESCE($2, name),
+             description = COALESCE($3, description)
+       WHERE id = $1
+       RETURNING id, type, name, description, join_mode, disappearing_seconds, created_by, status,
+                 requested_by_user_id, request_target_user_id, created_at
+    `,
+    [chatId, name ?? null, description ?? null],
+  );
+  return firstRow(result);
+}
+
+export async function setMemberRole(chatId, userId, role) {
+  const result = await dataSource.query(
+    `
+      UPDATE chat_members
+         SET role = $3
+       WHERE chat_id = $1 AND user_id = $2
+       RETURNING chat_id, user_id, role, joined_at
+    `,
+    [chatId, userId, role],
+  );
+  return firstRow(result);
+}
+
+export async function countAdmins(chatId) {
+  const rows = await dataSource.query(
+    `SELECT COUNT(*)::int AS n FROM chat_members WHERE chat_id = $1 AND role = 'admin'`,
+    [chatId],
+  );
+  return rows[0]?.n ?? 0;
 }
 
 export async function setChatStatus(chatId, status) {
@@ -27,7 +75,7 @@ export async function setChatStatus(chatId, status) {
       UPDATE chats
          SET status = $2
        WHERE id = $1
-       RETURNING id, type, name, created_by, status,
+       RETURNING id, type, name, description, join_mode, disappearing_seconds, created_by, status,
                  requested_by_user_id, request_target_user_id, created_at
     `,
     [chatId, status],
@@ -66,7 +114,7 @@ export async function removeMember(chatId, userId) {
 
 export async function getChatById(id) {
   const result = await dataSource.query(
-    `SELECT id, type, name, created_by, status,
+    `SELECT id, type, name, description, join_mode, disappearing_seconds, created_by, status,
             requested_by_user_id, request_target_user_id, created_at
        FROM chats WHERE id = $1 LIMIT 1`,
     [id],
@@ -106,7 +154,8 @@ export async function getMembership(chatId, userId) {
 export async function getUserChats(userId, { limit = 50, offset = 0 } = {}) {
   const rows = await dataSource.query(
     `
-      SELECT c.id, c.type, c.name, c.created_by, c.created_at,
+      SELECT c.id, c.type, c.name, c.description, c.join_mode, c.disappearing_seconds,
+             c.created_by, c.created_at,
              c.status, c.requested_by_user_id, c.request_target_user_id,
              cm.role AS my_role, cm.joined_at AS my_joined_at,
              other_u.id AS other_user_id,
@@ -158,7 +207,8 @@ export async function getAllChatsForUserIncludingRequests(
 export async function getRequestChatsForUser(userId, { limit = 50, offset = 0 } = {}) {
   const rows = await dataSource.query(
     `
-      SELECT c.id, c.type, c.name, c.created_by, c.created_at,
+      SELECT c.id, c.type, c.name, c.description, c.join_mode, c.disappearing_seconds,
+             c.created_by, c.created_at,
              c.status, c.requested_by_user_id, c.request_target_user_id,
              cm.role AS my_role, cm.joined_at AS my_joined_at,
              other_u.id AS other_user_id,
@@ -184,7 +234,8 @@ export async function getRequestChatsForUser(userId, { limit = 50, offset = 0 } 
 export async function findDirectChatBetween(userIdA, userIdB) {
   const result = await dataSource.query(
     `
-      SELECT c.id, c.type, c.name, c.created_by, c.status,
+      SELECT c.id, c.type, c.name, c.description, c.join_mode, c.disappearing_seconds,
+             c.created_by, c.status,
              c.requested_by_user_id, c.request_target_user_id, c.created_at
         FROM chats c
         JOIN chat_members m1 ON m1.chat_id = c.id AND m1.user_id = $1

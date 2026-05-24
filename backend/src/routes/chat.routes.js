@@ -5,6 +5,9 @@ import { validate } from '../middlewares/validate.middleware.js';
 import {
   createDirectChatValidator,
   createGroupChatValidator,
+  createChannelValidator,
+  updateGroupValidator,
+  setMemberRoleValidator,
   addMembersValidator,
   chatIdParam,
   chatIdAndUserIdParams,
@@ -19,9 +22,11 @@ chatRouter.get('/', listChatsValidator, validate, chatCtrl.listMine);
 chatRouter.get('/requests', listChatsValidator, validate, chatCtrl.listRequests);
 chatRouter.post('/direct', createDirectChatValidator, validate, chatCtrl.createDirect);
 chatRouter.post('/group', createGroupChatValidator, validate, chatCtrl.createGroup);
+chatRouter.post('/channel', createChannelValidator, validate, chatCtrl.createChannel);
 chatRouter.post('/:id/accept-request', chatIdParam, validate, chatCtrl.acceptRequest);
 chatRouter.post('/:id/reject-request', chatIdParam, validate, chatCtrl.rejectRequest);
 chatRouter.get('/:id', chatIdParam, validate, chatCtrl.getOne);
+chatRouter.patch('/:id', updateGroupValidator, validate, chatCtrl.updateGroup);
 chatRouter.get('/:id/members', chatIdParam, validate, chatCtrl.getMembers);
 chatRouter.post('/:id/members', addMembersValidator, validate, chatCtrl.addMembers);
 chatRouter.delete(
@@ -29,5 +34,11 @@ chatRouter.delete(
   chatIdAndUserIdParams,
   validate,
   chatCtrl.removeMember,
+);
+chatRouter.patch(
+  '/:id/members/:userId/role',
+  setMemberRoleValidator,
+  validate,
+  chatCtrl.setMemberRole,
 );
 chatRouter.post('/:id/leave', chatIdParam, validate, chatCtrl.leave);
