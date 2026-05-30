@@ -142,6 +142,7 @@ export async function searchByUsername(query, { limit = 20, offset = 0 } = {}) {
       SELECT ${USER_PUBLIC_COLUMNS}
         FROM users
        WHERE username ILIKE $1
+         AND email_verified_at IS NOT NULL
        ORDER BY username ASC
        LIMIT $2 OFFSET $3
     `,
