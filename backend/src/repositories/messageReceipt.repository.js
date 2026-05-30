@@ -26,6 +26,29 @@ export async function markSeen({ messageId, userId }) {
   );
 }
 
+// Marks every message in the chat with created_at <= the target message
+// (and not sent by the user) as seen — used when opening the chat to
+// drain the unread count in one shot.
+export async function markSeenUpTo({ chatId, userId, messageId }) {
+  await dataSource.query(
+    `
+      INSERT INTO message_receipts (message_id, user_id, delivered_at, seen_at)
+      SELECT m.id, $2, now(), now()
+        FROM messages m
+        JOIN messages target ON target.id = $3
+       WHERE m.chat_id = $1
+         AND m.sender_id <> $2
+         AND m.deleted_at IS NULL
+         AND m.created_at <= target.created_at
+      ON CONFLICT (message_id, user_id)
+        DO UPDATE SET
+          delivered_at = COALESCE(message_receipts.delivered_at, EXCLUDED.delivered_at),
+          seen_at      = COALESCE(message_receipts.seen_at, EXCLUDED.seen_at)
+    `,
+    [chatId, userId, messageId],
+  );
+}
+
 export async function getUnreadCount(userId, chatId) {
   const rows = await dataSource.query(
     `

@@ -13,7 +13,9 @@ export function useLoginMutation() {
 
   return useMutation({
     mutationFn: authApi.login,
-    onSuccess: ({ user, accessToken }) => {
+    onSuccess: (result) => {
+      if (result?.requires2fa) return; // Wait for 2FA verification.
+      const { user, accessToken } = result;
       setAuth({ user, accessToken });
       queryClient.setQueryData(authKeys.me, user);
     },

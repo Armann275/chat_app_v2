@@ -11,7 +11,11 @@ import RequestChatBanner from '@/components/chat/RequestChatBanner';
 import TypingIndicator from '@/components/chat/TypingIndicator';
 import ForwardModal from '@/components/chat/ForwardModal';
 import ThreadPanel from '@/components/chat/ThreadPanel';
+import InviteLinksModal from '@/components/chat/InviteLinksModal';
+import JoinRequestsModal from '@/components/chat/JoinRequestsModal';
+import PollsModal from '@/components/chat/PollsModal';
 import { useChatQuery } from '@/queries/chat.queries';
+import { useJoinRequestsQuery } from '@/queries/joinRequest.queries';
 import {
   useEditMessageMutation,
   useDeleteMessageMutation,
@@ -33,6 +37,9 @@ export default function ChatPage() {
 
   const [membersOpen, setMembersOpen] = useState(false);
   const [pinsOpen, setPinsOpen] = useState(false);
+  const [invitesOpen, setInvitesOpen] = useState(false);
+  const [requestsOpen, setRequestsOpen] = useState(false);
+  const [pollsOpen, setPollsOpen] = useState(false);
   const [replyTarget, setReplyTarget] = useState(null);
   const [editingId, setEditingId] = useState(null);
   const [forwardTarget, setForwardTarget] = useState(null);
@@ -57,8 +64,17 @@ export default function ChatPage() {
     setForwardTarget(null);
     setThreadRoot(null);
     setPinsOpen(false);
+    setInvitesOpen(false);
+    setRequestsOpen(false);
+    setPollsOpen(false);
     return () => clearSelectedChat();
   }, [chatId, setSelectedChatId, clearSelectedChat]);
+
+  const myMembership = chatQuery.data?.members?.find((m) => m.userId === me?.id);
+  const iAmAdmin = myMembership?.role === 'admin';
+  const joinRequestsQuery = useJoinRequestsQuery(chatId, {
+    enabled: Boolean(chatId) && iAmAdmin && chatQuery.data?.type !== 'direct',
+  });
 
   const pinnedIds = useMemo(
     () => new Set((pinsQuery.data ?? []).map((p) => p.messageId)),
@@ -168,6 +184,10 @@ export default function ChatPage() {
         onOpenMembers={() => setMembersOpen(true)}
         onOpenPins={() => setPinsOpen(true)}
         pinnedCount={pinnedIds.size}
+        onOpenInviteLinks={() => setInvitesOpen(true)}
+        onOpenJoinRequests={() => setRequestsOpen(true)}
+        onOpenPolls={() => setPollsOpen(true)}
+        pendingJoinCount={joinRequestsQuery.data?.length ?? 0}
       />
       {isRequestRecipient && <RequestChatBanner chat={chat} />}
       {isRequester && (
@@ -224,6 +244,21 @@ export default function ChatPage() {
         rootMessage={threadRoot}
         open={Boolean(threadRoot)}
         onClose={() => setThreadRoot(null)}
+      />
+      <InviteLinksModal
+        chatId={chat.id}
+        open={invitesOpen}
+        onClose={() => setInvitesOpen(false)}
+      />
+      <JoinRequestsModal
+        chatId={chat.id}
+        open={requestsOpen}
+        onClose={() => setRequestsOpen(false)}
+      />
+      <PollsModal
+        chat={chat}
+        open={pollsOpen}
+        onClose={() => setPollsOpen(false)}
       />
     </div>
   );

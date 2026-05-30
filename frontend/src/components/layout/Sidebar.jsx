@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { MessagesSquare, Plus, Users, UserPlus, X, Map as MapIcon } from 'lucide-react';
+import { MessagesSquare, Plus, Users, UserPlus, X, Map as MapIcon, Megaphone, Sparkles } from 'lucide-react';
 import ChatList from '@/components/chat/ChatList';
 import RequestChatsList from '@/components/chat/RequestChatsList';
 import NewChatModal from '@/components/chat/NewChatModal';
 import NewGroupModal from '@/components/chat/NewGroupModal';
+import NewChannelModal from '@/components/chat/NewChannelModal';
 import { useRequestChatsQuery } from '@/queries/chat.queries';
 import { useUiStore } from '@/stores/uiStore';
 import { cn } from '@/utils/cn';
@@ -12,6 +13,7 @@ import { cn } from '@/utils/cn';
 export default function Sidebar() {
   const [directOpen, setDirectOpen] = useState(false);
   const [groupOpen, setGroupOpen] = useState(false);
+  const [channelOpen, setChannelOpen] = useState(false);
   const [tab, setTab] = useState('chats');
   const sidebarOpen = useUiStore((s) => s.sidebarOpen);
   const closeSidebar = useUiStore((s) => s.closeSidebar);
@@ -68,6 +70,15 @@ export default function Sidebar() {
               title="New group chat"
             >
               <Users className="h-4 w-4" />
+            </button>
+            <button
+              type="button"
+              onClick={() => setChannelOpen(true)}
+              className="rounded p-1.5 text-slate-500 hover:bg-slate-100 hover:text-slate-700 dark:text-slate-400 dark:hover:bg-slate-800"
+              aria-label="New channel"
+              title="New channel"
+            >
+              <Megaphone className="h-4 w-4" />
             </button>
             <button
               type="button"
@@ -130,9 +141,17 @@ export default function Sidebar() {
           <MapIcon className="h-4 w-4" />
           Map
         </Link>
+        <Link
+          to="/ai-assistant"
+          className="flex items-center gap-2 border-t border-slate-200 px-4 py-3 text-sm text-slate-600 hover:bg-slate-50 dark:border-slate-800 dark:text-slate-300 dark:hover:bg-slate-800"
+        >
+          <Sparkles className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
+          AI Assistant
+        </Link>
 
         <NewChatModal open={directOpen} onClose={() => setDirectOpen(false)} />
         <NewGroupModal open={groupOpen} onClose={() => setGroupOpen(false)} />
+        <NewChannelModal open={channelOpen} onClose={() => setChannelOpen(false)} />
       </aside>
     </>
   );

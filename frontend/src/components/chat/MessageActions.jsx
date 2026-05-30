@@ -113,7 +113,7 @@ export default function MessageActions({
         bottom: pos.bottom ?? undefined,
         width: MENU_WIDTH,
       }}
-      className="z-50 min-w-[180px] rounded-md border border-slate-200 bg-white p-1 shadow-lg dark:border-slate-700 dark:bg-slate-800"
+      className="z-50 min-w-[180px] rounded-md border border-slate-200 bg-white p-1 text-slate-700 shadow-lg dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
     >
       <button
         type="button"

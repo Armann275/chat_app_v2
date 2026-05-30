@@ -5,6 +5,7 @@ import * as refreshRepo from '../repositories/refreshToken.repository.js';
 import * as verificationRepo from '../repositories/emailVerification.repository.js';
 import * as emailService from './email.service.js';
 import * as locationService from './location.service.js';
+import * as totpService from './totp.service.js';
 import {
   signAccessToken,
   signRefreshToken,
@@ -33,7 +34,7 @@ function generateCode() {
   return String(randomInt(0, 1_000_000)).padStart(6, '0');
 }
 
-async function issueTokens(user) {
+async function issueTokens(user, { userAgent = null, ip = null } = {}) {
   const accessToken = signAccessToken({ sub: user.id });
   const refreshToken = signRefreshToken({ sub: user.id, jti: randomUUID() });
 
@@ -44,6 +45,8 @@ async function issueTokens(user) {
     userId: user.id,
     tokenHash: hashRefreshToken(refreshToken),
     expiresAt,
+    userAgent,
+    ip,
   });
 
   return { accessToken, refreshToken };
@@ -109,11 +112,11 @@ export async function register({ username, email, password: plain }) {
   };
 }
 
-export async function verifyEmail({ userId, code }) {
+export async function verifyEmail({ userId, code }, meta = {}) {
   const user = await userRepo.findById(userId);
   if (!user) throw new NotFoundError('User not found');
   if (user.email_verified_at) {
-    const tokens = await issueTokens(user);
+    const tokens = await issueTokens(user, meta);
     return { user: publicUser(user), ...tokens };
   }
 
@@ -140,7 +143,7 @@ export async function verifyEmail({ userId, code }) {
 
   await verificationRepo.markConsumed(active.id);
   const updated = await userRepo.markEmailVerified(userId);
-  const tokens = await issueTokens(updated);
+  const tokens = await issueTokens(updated, meta);
   return { user: publicUser(updated), ...tokens };
 }
 
@@ -165,7 +168,7 @@ export async function resendVerificationCode({ userId }) {
   return { sent: true };
 }
 
-export async function login({ email, password: plain }) {
+export async function login({ email, password: plain }, meta = {}) {
   const row = await userRepo.findByEmail(email);
   if (!row) throw new UnauthorizedError('Invalid credentials');
 
@@ -182,11 +185,28 @@ export async function login({ email, password: plain }) {
     throw new EmailNotVerifiedError(row.id);
   }
 
-  const tokens = await issueTokens(row);
+  if (await totpService.isEnabled(row.id)) {
+    const { token, expiresAt } = await totpService.createChallenge(row.id);
+    return {
+      requires2fa: true,
+      twoFactorToken: token,
+      expiresAt,
+    };
+  }
+
+  const tokens = await issueTokens(row, meta);
   return { user: publicUser(row), ...tokens };
 }
 
-export async function refresh(rawRefreshToken) {
+export async function verify2fa({ token, code }, meta = {}) {
+  const { userId } = await totpService.verifyChallenge({ token, code });
+  const user = await userRepo.findById(userId);
+  if (!user) throw new UnauthorizedError('User no longer exists');
+  const tokens = await issueTokens(user, meta);
+  return { user: publicUser(user), ...tokens };
+}
+
+export async function refresh(rawRefreshToken, meta = {}) {
   if (!rawRefreshToken) throw new UnauthorizedError('Missing refresh token');
 
   const payload = verifyRefreshToken(rawRefreshToken);
@@ -207,7 +227,7 @@ export async function refresh(rawRefreshToken) {
   const user = await userRepo.findById(stored.user_id);
   if (!user) throw new UnauthorizedError('User no longer exists');
 
-  const tokens = await issueTokens(user);
+  const tokens = await issueTokens(user, meta);
   return { user: publicUser(user), ...tokens };
 }
 

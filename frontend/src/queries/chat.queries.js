@@ -47,6 +47,40 @@ export function useCreateGroupChatMutation() {
   });
 }
 
+export function useCreateChannelMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: chatApi.createChannel,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: chatKeys.list });
+    },
+  });
+}
+
+export function useUpdateGroupMutation(chatId) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (patch) => chatApi.updateGroup(chatId, patch),
+    onSuccess: (chat) => {
+      queryClient.setQueryData(chatKeys.detail(chatId), (prev) =>
+        prev ? { ...prev, ...chat } : prev,
+      );
+      queryClient.invalidateQueries({ queryKey: chatKeys.list });
+    },
+  });
+}
+
+export function useSetMemberRoleMutation(chatId) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ userId, role }) => chatApi.setMemberRole(chatId, userId, role),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: chatKeys.detail(chatId) });
+      queryClient.invalidateQueries({ queryKey: chatKeys.members(chatId) });
+    },
+  });
+}
+
 export function useAddMembersMutation(chatId) {
   const queryClient = useQueryClient();
   return useMutation({
@@ -76,6 +110,19 @@ export function useLeaveChatMutation() {
     onSuccess: (_data, chatId) => {
       queryClient.invalidateQueries({ queryKey: chatKeys.list });
       queryClient.removeQueries({ queryKey: chatKeys.detail(chatId) });
+    },
+  });
+}
+
+export function useSetDisappearingMutation(chatId) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (disappearingSeconds) => chatApi.setDisappearing(chatId, disappearingSeconds),
+    onSuccess: (chat) => {
+      queryClient.setQueryData(chatKeys.detail(chatId), (prev) =>
+        prev ? { ...prev, ...chat } : prev,
+      );
+      queryClient.invalidateQueries({ queryKey: chatKeys.list });
     },
   });
 }

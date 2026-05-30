@@ -20,9 +20,27 @@ export async function createDirectChat(userId) {
   return data.data.chat;
 }
 
-export async function createGroupChat({ name, memberIds }) {
-  const { data } = await apiClient.post('/chats/group', { name, memberIds });
+export async function createGroupChat({ name, description, memberIds }) {
+  const { data } = await apiClient.post('/chats/group', { name, description, memberIds });
   return data.data.chat;
+}
+
+export async function createChannel({ name, description, memberIds = [] }) {
+  const { data } = await apiClient.post('/chats/channel', { name, description, memberIds });
+  return data.data.chat;
+}
+
+export async function updateGroup(chatId, { name, description }) {
+  const { data } = await apiClient.patch(`/chats/${chatId}`, { name, description });
+  return data.data.chat;
+}
+
+export async function setMemberRole(chatId, userId, role) {
+  const { data } = await apiClient.patch(
+    `/chats/${chatId}/members/${userId}/role`,
+    { role },
+  );
+  return data.data.member;
 }
 
 export async function addMembers(chatId, memberIds) {
@@ -53,4 +71,11 @@ export async function acceptChatRequest(chatId) {
 export async function rejectChatRequest(chatId) {
   const { data } = await apiClient.post(`/chats/${chatId}/reject-request`);
   return data.data;
+}
+
+export async function setDisappearing(chatId, disappearingSeconds) {
+  const { data } = await apiClient.patch(`/chats/${chatId}/disappearing`, {
+    disappearingSeconds,
+  });
+  return data.data.chat;
 }

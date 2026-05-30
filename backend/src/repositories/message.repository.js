@@ -6,6 +6,11 @@ const MESSAGE_COLUMNS = `
   edited_at, deleted_at, created_at, updated_at
 `;
 
+const MESSAGE_COLUMNS_M = `
+  m.id, m.chat_id, m.sender_id, m.content, m.reply_to_message_id, m.forwarded_from_message_id, m.thread_root_id,
+  m.edited_at, m.deleted_at, m.created_at, m.updated_at
+`;
+
 export async function create({ chatId, senderId, content, replyToMessageId = null, forwardedFromMessageId = null, threadRootId = null }) {
   const result = await dataSource.query(
     `
@@ -42,10 +47,11 @@ export async function getThreadMessages(rootId, { limit = 50, offset = 0 } = {})
 export async function getByChat(chatId, userId, { limit = 50, offset = 0 } = {}) {
   const rows = await dataSource.query(
     `
-      SELECT ${MESSAGE_COLUMNS},
+      SELECT ${MESSAGE_COLUMNS_M},
              COALESCE(r.reactions, '[]'::jsonb) AS reactions,
              COALESCE(a.attachments, '[]'::jsonb) AS attachments
         FROM messages m
+        JOIN chats c ON c.id = m.chat_id
         LEFT JOIN LATERAL (
           SELECT jsonb_agg(jsonb_build_object(
             'userId', mr.user_id,
@@ -75,6 +81,10 @@ export async function getByChat(chatId, userId, { limit = 50, offset = 0 } = {})
          AND NOT EXISTS (
            SELECT 1 FROM message_deletions md
             WHERE md.message_id = m.id AND md.user_id = $2
+         )
+         AND (
+           c.disappearing_seconds IS NULL
+           OR m.created_at > now() - (c.disappearing_seconds || ' seconds')::interval
          )
        ORDER BY m.created_at DESC
        LIMIT $3 OFFSET $4
@@ -135,16 +145,21 @@ export async function getById(id) {
 export async function searchInChat(chatId, userId, query, { limit = 50, offset = 0 } = {}) {
   const rows = await dataSource.query(
     `
-      SELECT ${MESSAGE_COLUMNS},
-             ts_rank(to_tsvector('simple', content), plainto_tsquery('simple', $3)) AS rank
+      SELECT ${MESSAGE_COLUMNS_M},
+             ts_rank(to_tsvector('simple', m.content), plainto_tsquery('simple', $3)) AS rank
         FROM messages m
+        JOIN chats c ON c.id = m.chat_id
        WHERE m.chat_id = $1
          AND m.deleted_at IS NULL
          AND NOT EXISTS (
            SELECT 1 FROM message_deletions md
             WHERE md.message_id = m.id AND md.user_id = $2
          )
-         AND to_tsvector('simple', content) @@ plainto_tsquery('simple', $3)
+         AND (
+           c.disappearing_seconds IS NULL
+           OR m.created_at > now() - (c.disappearing_seconds || ' seconds')::interval
+         )
+         AND to_tsvector('simple', m.content) @@ plainto_tsquery('simple', $3)
        ORDER BY rank DESC, m.created_at DESC
        LIMIT $4 OFFSET $5
     `,
@@ -161,10 +176,15 @@ export async function searchAll(userId, query, { limit = 50, offset = 0 } = {}) 
              ts_rank(to_tsvector('simple', m.content), plainto_tsquery('simple', $2)) AS rank
         FROM messages m
         JOIN chat_members cm ON cm.chat_id = m.chat_id AND cm.user_id = $1
+        JOIN chats c ON c.id = m.chat_id
        WHERE m.deleted_at IS NULL
          AND NOT EXISTS (
            SELECT 1 FROM message_deletions md
             WHERE md.message_id = m.id AND md.user_id = $1
+         )
+         AND (
+           c.disappearing_seconds IS NULL
+           OR m.created_at > now() - (c.disappearing_seconds || ' seconds')::interval
          )
          AND to_tsvector('simple', m.content) @@ plainto_tsquery('simple', $2)
        ORDER BY rank DESC, m.created_at DESC

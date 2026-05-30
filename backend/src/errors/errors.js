@@ -76,3 +76,15 @@ export class TooSoonError extends AppError {
     super(message, { statusCode: 429, code: 'TOO_SOON' });
   }
 }
+
+export class AiProviderError extends AppError {
+  constructor(message = 'AI provider request failed') {
+    super(message, { statusCode: 502, code: 'AI_PROVIDER_ERROR' });
+  }
+}
+
+export class AiNotConfiguredError extends AppError {
+  constructor(message = 'AI assistant is not configured on this server') {
+    super(message, { statusCode: 503, code: 'AI_NOT_CONFIGURED' });
+  }
+}

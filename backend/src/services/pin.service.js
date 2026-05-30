@@ -1,7 +1,9 @@
 import * as pinRepo from '../repositories/pin.repository.js';
 import * as messageRepo from '../repositories/message.repository.js';
+import * as chatRepo from '../repositories/chat.repository.js';
 import * as chatService from './chat.service.js';
 import { emitToChat } from '../sockets/realtime.js';
+import { canPin } from '../utils/chatPermissions.js';
 import { NotFoundError, ForbiddenError } from '../errors/errors.js';
 
 function pinnedRowToDto(row) {
@@ -24,8 +26,12 @@ function pinnedRowToDto(row) {
   };
 }
 
-async function loadAndAuthz(currentUserId, chatId, messageId) {
-  await chatService.assertMembership(chatId, currentUserId);
+async function loadAndAuthz(currentUserId, chatId, messageId, { requirePinRole = false } = {}) {
+  const membership = await chatService.assertMembership(chatId, currentUserId);
+  const chat = await chatRepo.getChatById(chatId);
+  if (requirePinRole && chat?.type !== 'direct' && !canPin(membership.role)) {
+    throw new ForbiddenError('Only moderators or admins can pin messages');
+  }
   const message = await messageRepo.getById(messageId);
   if (!message) throw new NotFoundError('Message not found');
   if (message.chat_id !== chatId) {
@@ -35,13 +41,13 @@ async function loadAndAuthz(currentUserId, chatId, messageId) {
 }
 
 export async function pin(currentUserId, chatId, messageId) {
-  await loadAndAuthz(currentUserId, chatId, messageId);
+  await loadAndAuthz(currentUserId, chatId, messageId, { requirePinRole: true });
   await pinRepo.pin({ chatId, messageId, pinnedBy: currentUserId });
   emitToChat(chatId, 'message:pinned', { chatId, messageId, pinnedBy: currentUserId });
 }
 
 export async function unpin(currentUserId, chatId, messageId) {
-  await loadAndAuthz(currentUserId, chatId, messageId);
+  await loadAndAuthz(currentUserId, chatId, messageId, { requirePinRole: true });
   await pinRepo.unpin({ chatId, messageId });
   emitToChat(chatId, 'message:unpinned', { chatId, messageId });
 }

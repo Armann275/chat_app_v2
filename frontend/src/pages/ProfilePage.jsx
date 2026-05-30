@@ -16,6 +16,9 @@ import {
   useClearCustomPhotoMutation,
 } from '@/queries/avatar.queries';
 import PrivacySettings from '@/components/settings/PrivacySettings';
+import BlockedUsersSection from '@/components/settings/BlockedUsersSection';
+import SessionsSection from '@/components/settings/SessionsSection';
+import TwoFactorSection from '@/components/settings/TwoFactorSection';
 
 const profileSchema = z.object({
   bio: z
@@ -217,6 +220,18 @@ export default function ProfilePage() {
 
       <div className="mt-6">
         <PrivacySettings />
+      </div>
+
+      <div className="mt-6">
+        <TwoFactorSection />
+      </div>
+
+      <div className="mt-6">
+        <SessionsSection />
+      </div>
+
+      <div className="mt-6">
+        <BlockedUsersSection />
       </div>
     </div>
   );

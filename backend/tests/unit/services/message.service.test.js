@@ -13,11 +13,13 @@ const messageRepoMock = {
 const receiptRepoMock = {
   markDelivered: jest.fn(),
   markSeen: jest.fn(),
+  markSeenUpTo: jest.fn(),
   getUnreadCount: jest.fn(),
   getUnreadCountsForUser: jest.fn(),
 };
 const chatServiceMock = {
   assertMembership: jest.fn(),
+  getChatForSending: jest.fn(),
 };
 const realtimeMock = {
   emitToChat: jest.fn(),
@@ -31,6 +33,7 @@ const mentionRepoMock = {
 };
 const chatRepoMock = {
   getMembers: jest.fn().mockResolvedValue([]),
+  getMembership: jest.fn(),
 };
 
 jest.unstable_mockModule(
@@ -78,8 +81,8 @@ beforeEach(() => {
 });
 
 describe('message.service.sendMessage', () => {
-  test('rejects non-members (assertMembership throws)', async () => {
-    chatServiceMock.assertMembership.mockRejectedValue(
+  test('rejects non-members (getChatForSending throws)', async () => {
+    chatServiceMock.getChatForSending.mockRejectedValue(
       Object.assign(new Error('forbidden'), { statusCode: 403 }),
     );
     await expect(
@@ -89,7 +92,9 @@ describe('message.service.sendMessage', () => {
   });
 
   test('persists, emits message:new, returns dto', async () => {
-    chatServiceMock.assertMembership.mockResolvedValue({});
+    chatServiceMock.getChatForSending.mockResolvedValue({
+      id: CHAT, type: 'group', status: 'active',
+    });
     messageRepoMock.create.mockResolvedValue(baseMessageRow);
 
     const dto = await messageService.sendMessage({
@@ -102,6 +107,31 @@ describe('message.service.sendMessage', () => {
     });
     expect(realtimeMock.emitToChat).toHaveBeenCalledWith(CHAT, 'message:new', dto);
     expect(dto).toMatchObject({ id: MSG, chatId: CHAT, senderId: ME, content: 'hello' });
+  });
+
+  test('channel: member without moderator+ role is forbidden', async () => {
+    chatServiceMock.getChatForSending.mockResolvedValue({
+      id: CHAT, type: 'channel', status: 'active',
+    });
+    chatRepoMock.getMembership.mockResolvedValue({ role: 'member' });
+
+    await expect(
+      messageService.sendMessage({ chatId: CHAT, senderId: ME, content: 'hi' }),
+    ).rejects.toMatchObject({ statusCode: 403 });
+    expect(messageRepoMock.create).not.toHaveBeenCalled();
+  });
+
+  test('channel: moderator can post', async () => {
+    chatServiceMock.getChatForSending.mockResolvedValue({
+      id: CHAT, type: 'channel', status: 'active',
+    });
+    chatRepoMock.getMembership.mockResolvedValue({ role: 'moderator' });
+    messageRepoMock.create.mockResolvedValue(baseMessageRow);
+
+    const dto = await messageService.sendMessage({
+      chatId: CHAT, senderId: ME, content: 'broadcast',
+    });
+    expect(dto.id).toBe(MSG);
   });
 });
 
@@ -146,7 +176,11 @@ describe('message.service.markSeen', () => {
     messageRepoMock.getById.mockResolvedValue(baseMessageRow);
 
     await messageService.markSeen(ME, CHAT, MSG);
-    expect(receiptRepoMock.markSeen).toHaveBeenCalledWith({ messageId: MSG, userId: ME });
+    expect(receiptRepoMock.markSeenUpTo).toHaveBeenCalledWith({
+      chatId: CHAT,
+      userId: ME,
+      messageId: MSG,
+    });
     expect(realtimeMock.emitToChat).toHaveBeenCalledWith(
       CHAT,
       'message:seen',

@@ -1,8 +1,14 @@
 import { Link } from 'react-router-dom';
-import { format } from 'date-fns';
+import { format, isValid } from 'date-fns';
 import { Star } from 'lucide-react';
 import Spinner from '@/components/ui/Spinner';
 import { useStarredQuery, useUnstarMutation } from '@/queries/star.queries';
+
+function formatTimestamp(value) {
+  if (!value) return '';
+  const date = new Date(value);
+  return isValid(date) ? format(date, 'MMM d, HH:mm') : '';
+}
 
 export default function StarredPage() {
   const starredQuery = useStarredQuery();
@@ -28,7 +34,7 @@ export default function StarredPage() {
         </p>
       ) : (
         <ul className="mt-6 flex flex-col gap-2">
-          {messages.map((m) => (
+          {messages.map(({ starredAt, message: m }) => (
             <li
               key={m.id}
               className="rounded-md border border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-900"
@@ -41,7 +47,7 @@ export default function StarredPage() {
                       : m.content}
                   </p>
                   <p className="mt-1 flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
-                    <span>{format(new Date(m.createdAt), 'MMM d, HH:mm')}</span>
+                    <span>{formatTimestamp(m.createdAt ?? starredAt)}</span>
                     <Link
                       to={`/chats/${m.chatId}`}
                       className="text-indigo-600 hover:underline dark:text-indigo-300"

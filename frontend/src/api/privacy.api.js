@@ -5,7 +5,9 @@ export async function getMyPrivacy() {
   return data.data.privacy;
 }
 
-export async function updateMyPrivacy(whoCanMessage) {
-  const { data } = await apiClient.put('/me/privacy', { whoCanMessage });
+export async function updateMyPrivacy(payload) {
+  // Back-compat: a bare string is treated as { whoCanMessage }.
+  const body = typeof payload === 'string' ? { whoCanMessage: payload } : payload;
+  const { data } = await apiClient.put('/me/privacy', body);
   return data.data.privacy;
 }

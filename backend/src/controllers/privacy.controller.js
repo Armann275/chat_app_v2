@@ -6,6 +6,10 @@ export async function getMine(req, res) {
 }
 
 export async function updateMine(req, res) {
-  const privacy = await privacyService.updateMine(req.user.id, req.body.whoCanMessage);
+  const privacy = await privacyService.updateMine(req.user.id, {
+    whoCanMessage: req.body.whoCanMessage,
+    lastSeenVisibility: req.body.lastSeenVisibility,
+    profilePhotoVisibility: req.body.profilePhotoVisibility,
+  });
   res.json({ success: true, data: { privacy } });
 }

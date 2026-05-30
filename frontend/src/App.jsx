@@ -4,6 +4,7 @@ import { router } from '@/routes/router';
 import { useBootAuth } from '@/hooks/useBootAuth';
 import { useSocket } from '@/hooks/useSocket';
 import { useSyncOnReconnect } from '@/hooks/useSyncOnReconnect';
+import CallOverlay from '@/components/call/CallOverlay';
 
 export default function App() {
   useBootAuth();
@@ -13,6 +14,7 @@ export default function App() {
   return (
     <>
       <RouterProvider router={router} />
+      <CallOverlay />
       <Toaster position="top-right" richColors />
     </>
   );

@@ -366,6 +366,19 @@ export default function MessageInput({
     value.length > MAX_LEN ||
     pending.some((p) => p.uploading);
 
+  const myMembership = chat.members?.find((m) => m.userId === me?.id);
+  const cannotPostChannel =
+    chat.type === 'channel' &&
+    !['admin', 'moderator'].includes(myMembership?.role);
+
+  if (cannotPostChannel) {
+    return (
+      <div className="border-t border-slate-200 bg-slate-50 px-4 py-3 text-center text-xs text-slate-500 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-400">
+        Only moderators and admins can post in this channel.
+      </div>
+    );
+  }
+
   return (
     <div
       className="relative border-t border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-900"
