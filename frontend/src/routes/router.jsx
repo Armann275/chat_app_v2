@@ -10,6 +10,7 @@ import StarredPage from '@/pages/StarredPage';
 import NotificationsPage from '@/pages/NotificationsPage';
 import FriendsPage from '@/pages/FriendsPage';
 import MapPage from '@/pages/MapPage';
+import AIAssistantPage from '@/pages/AIAssistantPage';
 import InviteRedeemPage from '@/pages/InviteRedeemPage';
 import ProtectedRoute from '@/routes/ProtectedRoute';
 import GuestRoute from '@/routes/GuestRoute';
@@ -39,6 +40,7 @@ export const router = createBrowserRouter([
           { path: '/notifications', element: <NotificationsPage /> },
           { path: '/friends', element: <FriendsPage /> },
           { path: '/map', element: <MapPage /> },
+          { path: '/ai-assistant', element: <AIAssistantPage /> },
         ],
       },
     ],

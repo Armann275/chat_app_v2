@@ -22,6 +22,8 @@ import { chatPollRouter, pollRouter } from './routes/poll.routes.js';
 import { userBlockRouter, meBlockRouter } from './routes/block.routes.js';
 import { sessionRouter } from './routes/session.routes.js';
 import { totpRouter } from './routes/totp.routes.js';
+import { aiAssistantRouter } from './routes/aiAssistant.routes.js';
+import { chatCallRouter, callRouter, meCallRouter } from './routes/call.routes.js';
 
 export const app = express();
 
@@ -55,7 +57,10 @@ app.use('/chats', chatRouter);
 app.use('/chats/:id/messages', chatMessageRouter);
 app.use('/chats/:id', chatInviteRouter);
 app.use('/chats/:id', chatPollRouter);
+app.use('/chats/:id', chatCallRouter);
 app.use('/chats/:id', chatRootRouter);
+app.use('/calls', callRouter);
+app.use('/me/calls', meCallRouter);
 app.use('/invites', inviteRedeemRouter);
 app.use('/polls', pollRouter);
 app.use('/messages', messageRouter);
@@ -72,6 +77,7 @@ app.use('/me/sessions', sessionRouter);
 app.use('/me/2fa', totpRouter);
 app.use('/users/:id', userBlockRouter);
 app.use('/map', mapRouter);
+app.use('/ai', aiAssistantRouter);
 
 app.use(notFoundHandler);
 app.use(errorHandler);

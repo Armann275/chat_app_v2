@@ -13,6 +13,9 @@ import { useMapStore } from '@/stores/mapStore';
 import { useAuthStore } from '@/stores/authStore';
 import { useLocationSharing } from '@/hooks/useLocationSharing';
 
+const FRESH_WINDOW_MS = 24 * 60 * 60 * 1000;
+const TICK_INTERVAL_MS = 60_000;
+
 export default function MapPage() {
   const friendsQuery = useMapFriendsQuery();
   const privacyQuery = useMapPrivacyQuery();
@@ -23,13 +26,46 @@ export default function MapPage() {
 
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [sharing, setSharing] = useState(false);
+  const [, setTick] = useState(0);
   const { supported, lastSent } = useLocationSharing(sharing);
 
   useEffect(() => {
     if (friendsQuery.data) hydrate(friendsQuery.data);
   }, [friendsQuery.data, hydrate]);
 
-  const friends = Object.values(friendLocations);
+  // Re-render every minute so "X ago" labels stay current and stale friends
+  // drop off without a refetch. The effect also evicts entries from the
+  // store so reconnects don't replay locations older than the cutoff.
+  useEffect(() => {
+    const sweep = () => {
+      setTick((t) => t + 1);
+      const now = Date.now();
+      const current = useMapStore.getState().friendLocations;
+      for (const loc of Object.values(current)) {
+        if (!loc.updatedAt) continue;
+        const ts = new Date(loc.updatedAt).getTime();
+        if (!Number.isFinite(ts) || now - ts > FRESH_WINDOW_MS) {
+          useMapStore.getState().removeFriend(loc.userId);
+        }
+      }
+    };
+    sweep();
+    const id = setInterval(sweep, TICK_INTERVAL_MS);
+    return () => clearInterval(id);
+  }, []);
+
+  // Defensive display-time filter (handles entries within the window of the
+  // last sweep tick).
+  const friends = [];
+  {
+    const now = Date.now();
+    for (const loc of Object.values(friendLocations)) {
+      if (!loc.updatedAt) continue;
+      const ts = new Date(loc.updatedAt).getTime();
+      if (!Number.isFinite(ts) || now - ts > FRESH_WINDOW_MS) continue;
+      friends.push(loc);
+    }
+  }
   const myLocation = lastSent
     ? {
         latitude: lastSent.coords.latitude,

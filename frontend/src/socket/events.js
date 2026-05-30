@@ -36,4 +36,13 @@ export const SocketEvents = {
   PollCreated: 'poll:created',
   PollVoted: 'poll:voted',
   PollClosed: 'poll:closed',
+  ChatDisappearingUpdated: 'chat:disappearing-updated',
+  CallInitiated: 'call:initiated',
+  CallAccepted: 'call:accepted',
+  CallRejected: 'call:rejected',
+  CallEnded: 'call:ended',
+  CallMissed: 'call:missed',
+  CallOffer: 'call:offer',
+  CallAnswer: 'call:answer',
+  CallIceCandidate: 'call:ice-candidate',
 };

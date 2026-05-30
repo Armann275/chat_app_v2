@@ -201,7 +201,11 @@ export async function markSeen(currentUserId, chatId, messageId) {
     throw new ForbiddenError('Message does not belong to this chat');
   }
 
-  await receiptRepo.markSeen({ messageId, userId: currentUserId });
+  await receiptRepo.markSeenUpTo({
+    chatId,
+    userId: currentUserId,
+    messageId,
+  });
 
   emitToChat(chatId, 'message:seen', {
     messageId,

@@ -8,6 +8,7 @@ import {
   createChannelValidator,
   updateGroupValidator,
   setMemberRoleValidator,
+  setDisappearingValidator,
   addMembersValidator,
   chatIdParam,
   chatIdAndUserIdParams,
@@ -42,3 +43,9 @@ chatRouter.patch(
   chatCtrl.setMemberRole,
 );
 chatRouter.post('/:id/leave', chatIdParam, validate, chatCtrl.leave);
+chatRouter.patch(
+  '/:id/disappearing',
+  setDisappearingValidator,
+  validate,
+  chatCtrl.setDisappearing,
+);

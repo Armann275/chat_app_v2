@@ -53,6 +53,17 @@ export const env = {
 
   publicBaseUrl: process.env.PUBLIC_BASE_URL || '',
 
+  gemini: {
+    apiKey: process.env.GEMINI_API_KEY || null,
+    model: process.env.GEMINI_MODEL || 'gemini-2.5-flash',
+  },
+
+  ai: {
+    historyMaxMessages: process.env.AI_HISTORY_MAX_MESSAGES
+      ? Number(process.env.AI_HISTORY_MAX_MESSAGES)
+      : 20,
+  },
+
   logLevel: process.env.LOG_LEVEL,
   corsOrigin: process.env.CORS_ORIGIN,
 };

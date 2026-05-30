@@ -27,12 +27,50 @@ function toChatDto(row) {
     name: row.name ?? null,
     description: row.description ?? null,
     joinMode: row.join_mode ?? 'invite_only',
+    disappearingSeconds: row.disappearing_seconds ?? null,
     createdBy: row.created_by,
     status: row.status ?? 'active',
     requestedByUserId: row.requested_by_user_id ?? null,
     requestTargetUserId: row.request_target_user_id ?? null,
     createdAt: row.created_at,
   };
+}
+
+const MAX_DISAPPEARING_SECONDS = 60 * 60 * 24 * 365;
+
+function normalizeDisappearingSeconds(value) {
+  if (value === null || value === undefined) return null;
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    throw new ValidationError('disappearingSeconds must be a number or null');
+  }
+  const n = Math.trunc(value);
+  if (n <= 0) return null;
+  if (n > MAX_DISAPPEARING_SECONDS) {
+    throw new ValidationError(
+      `disappearingSeconds must be <= ${MAX_DISAPPEARING_SECONDS}`,
+    );
+  }
+  return n;
+}
+
+export async function setDisappearing(currentUserId, chatId, disappearingSeconds) {
+  const chat = await chatRepo.getChatById(chatId);
+  if (!chat) throw new NotFoundError('Chat not found');
+
+  const myMembership = await ensureMembership(chatId, currentUserId);
+
+  if (chat.type !== 'direct' && !canEditChat(myMembership.role)) {
+    throw new ForbiddenError('Only admins can change disappearing messages');
+  }
+
+  const normalized = normalizeDisappearingSeconds(disappearingSeconds);
+  const updated = await chatRepo.setDisappearingSeconds(chatId, normalized);
+  const dto = toChatDto(updated);
+  emitToChat(chatId, 'chat:disappearing-updated', {
+    chatId,
+    disappearingSeconds: normalized,
+  });
+  return dto;
 }
 
 function memberRowToDto(row) {
@@ -360,6 +398,19 @@ export async function leaveChat(currentUserId, chatId) {
   if (removed === 0) throw new ConflictError('Not a member of this chat');
 }
 
+function toLastMessageDto(row) {
+  if (!row.last_message_id) return null;
+  return {
+    id: row.last_message_id,
+    senderId: row.last_message_sender_id,
+    senderUsername: row.last_message_sender_username ?? null,
+    content: row.last_message_content ?? '',
+    createdAt: row.last_message_at,
+    deletedAt: row.last_message_deleted_at ?? null,
+    attachmentKind: row.last_message_attachment_kind ?? null,
+  };
+}
+
 export async function listMyChats(currentUserId, { limit = 50, offset = 0 } = {}) {
   const rows = await chatRepo.getUserChats(currentUserId, { limit, offset });
   return rows.map((row) => ({
@@ -368,6 +419,9 @@ export async function listMyChats(currentUserId, { limit = 50, offset = 0 } = {}
     myJoinedAt: row.my_joined_at,
     archived: row.my_archived ?? false,
     mutedUntil: row.my_muted_until ?? null,
+    lastMessage: toLastMessageDto(row),
+    lastMessageAt: row.last_message_at ?? null,
+    unreadCount: row.unread_count ?? 0,
     otherUser: row.other_user_id
       ? publicUser({
         id: row.other_user_id,

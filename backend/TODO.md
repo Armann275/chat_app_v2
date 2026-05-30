@@ -240,55 +240,73 @@ Remaining Tier 2 backend items that are tractable without new infrastructure. Ou
 
 ### 17.1 — Block & report user
 
-- [ ] Migration: `user_blocks` (blocker_id, blocked_id, created_at) PK(blocker_id, blocked_id); `user_reports` (id, reporter_id, reported_id, reason, details, created_at, resolved_at)
-- [ ] Entities + repos
-- [ ] Service `block.service.js`: `block`, `unblock`, `listBlocked`, `isBlocked`
-- [ ] Service `report.service.js`: `report` (with rate-limit-friendly upsert per pair)
-- [ ] Hook into `chat.service.createDirectChat` to refuse if either side has blocked
-- [ ] Hook into `message.service.sendMessage` to refuse if recipient(s) blocked sender (direct chats only)
-- [ ] Routes: `POST /users/:id/block`, `DELETE /users/:id/block`, `GET /me/blocks`, `POST /users/:id/report`
-- [ ] Unit tests
+- [x] Migration: `user_blocks` (blocker_id, blocked_id, created_at) PK(blocker_id, blocked_id); `user_reports` (id, reporter_id, reported_id, reason, details, created_at, resolved_at)
+- [x] Entities + repos
+- [x] Service `block.service.js`: `block`, `unblock`, `listBlocked`, `isBlocked`
+- [x] Service `report.service.js`: `report` (with rate-limit-friendly upsert per pair)
+- [x] Hook into `chat.service.createDirectChat` to refuse if either side has blocked
+- [x] Hook into `message.service.sendMessage` to refuse if recipient(s) blocked sender (direct chats only)
+- [x] Routes: `POST /users/:id/block`, `DELETE /users/:id/block`, `GET /me/blocks`, `POST /users/:id/report`
+- [x] Unit tests
 
 ### 17.2 — Session management
 
-- [ ] Extend `refresh_tokens` with `user_agent`, `ip`, `last_used_at`
-- [ ] Repo + service `session.service.js`: `listMine`, `revoke(sessionId)`, `revokeAllExceptCurrent`
-- [ ] Capture UA/IP in auth.service.login + refresh, update `last_used_at` on refresh
-- [ ] Routes: `GET /me/sessions`, `DELETE /me/sessions/:id`, `POST /me/sessions/revoke-others`
-- [ ] Unit tests
+- [x] Extend `refresh_tokens` with `user_agent`, `ip`, `last_used_at`
+- [x] Repo + service `session.service.js`: `listMine`, `revoke(sessionId)`, `revokeAllExceptCurrent`
+- [x] Capture UA/IP in auth.service.login + refresh, update `last_used_at` on refresh
+- [x] Routes: `GET /me/sessions`, `DELETE /me/sessions/:id`, `POST /me/sessions/revoke-others`
+- [x] Unit tests
 
 ### 17.3 — 2FA (TOTP)
 
-- [ ] Add `otplib` dependency
-- [ ] Migration: add `users.totp_secret` (text, nullable), `users.totp_enabled_at` (timestamptz, nullable), `users.totp_backup_codes` (jsonb of hashed codes)
-- [ ] Service `totp.service.js`: `beginSetup` (returns secret + otpauth URI), `enable(code)`, `disable(code)`, `verify(userId, code)`
-- [ ] Update auth.service.login: if user has TOTP enabled, return a `requires2fa: true, twoFactorToken` short-lived token instead of tokens; new endpoint exchanges 2FA code for tokens
-- [ ] Routes: `POST /me/2fa/setup`, `POST /me/2fa/enable`, `POST /me/2fa/disable`, `POST /auth/2fa/verify`, `GET /me/2fa/backup-codes/regenerate`
-- [ ] Unit tests
+- [x] Add `otplib` dependency
+- [x] Migration: add `users.totp_secret` (text, nullable), `users.totp_enabled_at` (timestamptz, nullable), `users.totp_backup_codes` (jsonb of hashed codes)
+- [x] Service `totp.service.js`: `beginSetup` (returns secret + otpauth URI), `enable(code)`, `disable(code)`, `verify(userId, code)`
+- [x] Update auth.service.login: if user has TOTP enabled, return a `requires2fa: true, twoFactorToken` short-lived token instead of tokens; new endpoint exchanges 2FA code for tokens
+- [x] Routes: `POST /me/2fa/setup`, `POST /me/2fa/enable`, `POST /me/2fa/disable`, `POST /auth/2fa/verify`, `GET /me/2fa/backup-codes/regenerate`
+- [x] Unit tests
 
 ### 17.4 — Disappearing messages
 
-- [ ] Migration: `chats.disappearing_seconds` (int, nullable) — when set, messages expire after N seconds
-- [ ] Update `message.repository.getByChat` and search to filter out expired messages
-- [ ] Settable via existing chat update endpoint (extend `updateGroupInfo` for groups/channels; allow on direct chats via a new endpoint)
-- [ ] Real-time: `chat:disappearing-updated`
-- [ ] Unit tests
+- [x] Migration: `chats.disappearing_seconds` (int, nullable) — when set, messages expire after N seconds
+- [x] Update `message.repository.getByChat` and search to filter out expired messages
+- [x] Settable via `PATCH /chats/:id/disappearing` (admin for groups/channels, any member for direct chats)
+- [x] Real-time: `chat:disappearing-updated`
+- [x] Unit tests
 
 ### 17.5 — Privacy controls expansion
 
-- [ ] Migration: extend `user_privacy_settings` with `last_seen_visibility`, `profile_photo_visibility` (varchar, default `'everyone'`, CHECK in `('everyone','friends','nobody')`)
-- [ ] Update privacy.service: include the new fields in DTO + update; respect when shaping `publicUser` (mask `lastSeenAt` and `displayAvatarUrl` if viewer not allowed)
-- [ ] Helper `applyPrivacy(viewerId, profileUser, settings, friendship)` used by user controllers and chat member listings
-- [ ] Unit tests
+- [x] Migration: extend `user_privacy_settings` with `last_seen_visibility`, `profile_photo_visibility` (varchar, default `'everyone'`, CHECK in `('everyone','friends','nobody')`)
+- [x] Update privacy.service: include the new fields in DTO + update; respect when shaping `publicUser` (mask `lastSeenAt` and `displayAvatarUrl` if viewer not allowed)
+- [x] Helper `applyPrivacy(viewerId, profileUser, settings, friendship)` exported from privacy.service for use by user controllers and chat member listings
+- [x] Unit tests
 
 ### 17.6 — Call signaling + call history (no media server)
 
-- [ ] Migration: `calls` (id, chat_id, initiator_id, status, started_at, ended_at, type ['voice'|'video']); `call_participants` (call_id, user_id, joined_at, left_at) PK
-- [ ] Service `call.service.js`: `initiate(currentUser, chatId, type)` (direct chats only — group calls need SFU), `accept(callId)`, `reject(callId)`, `hangup(callId)`, `listHistory()`
-- [ ] Socket events for WebRTC handshake: `call:offer` (sdp), `call:answer` (sdp), `call:ice-candidate`, `call:ended`, `call:missed`
-- [ ] Routes: `POST /chats/:id/calls`, `POST /calls/:id/accept|reject|hangup`, `GET /me/calls`
-- [ ] Auto-mark `missed` if not accepted within 30s (in-process timer)
-- [ ] Unit tests
+- [x] Migration: `calls` (id, chat_id, initiator_id, status, started_at, ended_at, type ['voice'|'video']); `call_participants` (call_id, user_id, joined_at, left_at) PK
+- [x] Service `call.service.js`: `initiate(currentUser, chatId, type)` (direct chats only — group calls need SFU), `accept(callId)`, `reject(callId)`, `hangup(callId)`, `listHistory()`
+- [x] Socket events for WebRTC handshake: `call:offer` (sdp), `call:answer` (sdp), `call:ice-candidate`, `call:ended`, `call:missed`
+- [x] Routes: `POST /chats/:id/calls`, `POST /calls/:id/accept|reject|hangup`, `GET /me/calls`
+- [x] Auto-mark `missed` if not accepted within 30s (in-process timer)
+- [x] Unit tests
+
+---
+
+## Phase 18 — AI Assistant (Tier 3, ad-hoc)
+
+User-requested in-app AI assistant that answers questions about this project. Uses Google Gemini free tier with a hand-written project context document (no RAG / no embeddings — codebase is small enough). Non-streaming first.
+
+- [x] Add `@google/generative-ai` dependency
+- [x] Env vars: `GEMINI_API_KEY`, `GEMINI_MODEL`, `AI_HISTORY_MAX_MESSAGES` (optional; AI is disabled if key missing)
+- [x] Migration `1714435450000-AddAiAssistant`: `ai_sessions`, `ai_messages` with CASCADE FKs and indexes
+- [x] Entities `aiSession.entity.js`, `aiMessage.entity.js`
+- [x] `src/ai/projectContext.md` + `src/ai/projectContext.js` (system prompt builder)
+- [x] `src/ai/geminiClient.js` (`askGemini`, lazy model init, `AiNotConfiguredError`, `AiProviderError`)
+- [x] `repositories/aiAssistant.repository.js` — raw SQL CRUD for sessions/messages, `listRecentMessages` for history
+- [x] `services/aiAssistant.service.js` — ownership checks, persist user message, call Gemini, persist reply, auto-title from first user message
+- [x] Validators, controller, routes mounted at `/ai`
+- [x] Frontend: API, queries, page, components, route, sidebar entry
+- [ ] Unit tests (deferred)
 
 ---
 

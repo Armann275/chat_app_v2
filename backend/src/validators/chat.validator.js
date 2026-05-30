@@ -67,6 +67,13 @@ export const addMembersValidator = [
   body('memberIds.*').isUUID(),
 ];
 
+export const setDisappearingValidator = [
+  param('id').isUUID(),
+  body('disappearingSeconds')
+    .custom((value) => value === null || (Number.isInteger(value) && value >= 0))
+    .withMessage('disappearingSeconds must be null or a non-negative integer'),
+];
+
 export const chatIdParam = [param('id').isUUID()];
 
 export const chatIdAndUserIdParams = [

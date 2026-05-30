@@ -78,6 +78,15 @@ export async function leave(req, res) {
   res.json({ success: true, data: { left: true } });
 }
 
+export async function setDisappearing(req, res) {
+  const chat = await chatService.setDisappearing(
+    req.user.id,
+    req.params.id,
+    req.body.disappearingSeconds ?? null,
+  );
+  res.json({ success: true, data: { chat } });
+}
+
 export async function listRequests(req, res) {
   const chats = await chatService.listRequestChats(req.user.id, {
     limit: req.query.limit ?? 50,

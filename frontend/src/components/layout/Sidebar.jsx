@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { MessagesSquare, Plus, Users, UserPlus, X, Map as MapIcon, Megaphone } from 'lucide-react';
+import { MessagesSquare, Plus, Users, UserPlus, X, Map as MapIcon, Megaphone, Sparkles } from 'lucide-react';
 import ChatList from '@/components/chat/ChatList';
 import RequestChatsList from '@/components/chat/RequestChatsList';
 import NewChatModal from '@/components/chat/NewChatModal';
@@ -140,6 +140,13 @@ export default function Sidebar() {
         >
           <MapIcon className="h-4 w-4" />
           Map
+        </Link>
+        <Link
+          to="/ai-assistant"
+          className="flex items-center gap-2 border-t border-slate-200 px-4 py-3 text-sm text-slate-600 hover:bg-slate-50 dark:border-slate-800 dark:text-slate-300 dark:hover:bg-slate-800"
+        >
+          <Sparkles className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
+          AI Assistant
         </Link>
 
         <NewChatModal open={directOpen} onClose={() => setDirectOpen(false)} />

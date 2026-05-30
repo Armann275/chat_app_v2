@@ -72,3 +72,10 @@ export async function rejectChatRequest(chatId) {
   const { data } = await apiClient.post(`/chats/${chatId}/reject-request`);
   return data.data;
 }
+
+export async function setDisappearing(chatId, disappearingSeconds) {
+  const { data } = await apiClient.patch(`/chats/${chatId}/disappearing`, {
+    disappearingSeconds,
+  });
+  return data.data.chat;
+}

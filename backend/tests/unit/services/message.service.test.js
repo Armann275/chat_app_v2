@@ -13,6 +13,7 @@ const messageRepoMock = {
 const receiptRepoMock = {
   markDelivered: jest.fn(),
   markSeen: jest.fn(),
+  markSeenUpTo: jest.fn(),
   getUnreadCount: jest.fn(),
   getUnreadCountsForUser: jest.fn(),
 };
@@ -175,7 +176,11 @@ describe('message.service.markSeen', () => {
     messageRepoMock.getById.mockResolvedValue(baseMessageRow);
 
     await messageService.markSeen(ME, CHAT, MSG);
-    expect(receiptRepoMock.markSeen).toHaveBeenCalledWith({ messageId: MSG, userId: ME });
+    expect(receiptRepoMock.markSeenUpTo).toHaveBeenCalledWith({
+      chatId: CHAT,
+      userId: ME,
+      messageId: MSG,
+    });
     expect(realtimeMock.emitToChat).toHaveBeenCalledWith(
       CHAT,
       'message:seen',

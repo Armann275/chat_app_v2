@@ -2,6 +2,7 @@ import * as chatRepo from '../repositories/chat.repository.js';
 import * as userRepo from '../repositories/user.repository.js';
 import * as messageService from '../services/message.service.js';
 import * as locationService from '../services/location.service.js';
+import * as callService from '../services/call.service.js';
 import { logger } from '../config/logger.js';
 
 const chatRoom = (chatId) => `chat:${chatId}`;
@@ -69,6 +70,29 @@ export function registerChatHandlers(io) {
         }
       }
     });
+
+    const relayCallSignal = async (event, payload = {}, ack) => {
+      try {
+        const callId = payload?.callId;
+        if (!callId) {
+          if (typeof ack === 'function') ack({ ok: false, code: 'VALIDATION_ERROR', message: 'callId required' });
+          return;
+        }
+        const { callId: _omit, ...rest } = payload;
+        await callService.relaySignal(userId, callId, event, rest);
+        if (typeof ack === 'function') ack({ ok: true });
+      } catch (err) {
+        if (typeof ack === 'function') {
+          ack({ ok: false, code: err.code ?? 'INTERNAL_ERROR', message: err.message });
+        }
+      }
+    };
+
+    socket.on('call:offer', (payload, ack) => relayCallSignal('call:offer', payload, ack));
+    socket.on('call:answer', (payload, ack) => relayCallSignal('call:answer', payload, ack));
+    socket.on('call:ice-candidate', (payload, ack) =>
+      relayCallSignal('call:ice-candidate', payload, ack),
+    );
 
     socket.on('typing:start', ({ chatId }) => {
       if (!chatId) return;

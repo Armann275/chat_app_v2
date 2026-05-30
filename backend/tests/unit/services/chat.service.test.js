@@ -11,6 +11,7 @@ const chatRepoMock = {
   findDirectChatBetween: jest.fn(),
   updateChatInfo: jest.fn(),
   setMemberRole: jest.fn(),
+  setDisappearingSeconds: jest.fn(),
   countAdmins: jest.fn().mockResolvedValue(2),
 };
 
@@ -449,6 +450,100 @@ describe('chat.service.setMemberRole', () => {
     const dto = await chatService.setMemberRole(ME, 'g1', OTHER, 'moderator');
     expect(chatRepoMock.setMemberRole).toHaveBeenCalledWith('g1', OTHER, 'moderator');
     expect(dto.role).toBe('moderator');
+  });
+});
+
+describe('chat.service.setDisappearing', () => {
+  test('rejects when chat missing', async () => {
+    chatRepoMock.getChatById.mockResolvedValue(null);
+    await expect(
+      chatService.setDisappearing(ME, 'gone', 3600),
+    ).rejects.toMatchObject({ statusCode: 404 });
+  });
+
+  test('rejects non-member', async () => {
+    chatRepoMock.getChatById.mockResolvedValue({ id: 'g1', type: 'group' });
+    chatRepoMock.getMembership.mockResolvedValue(null);
+    await expect(
+      chatService.setDisappearing(ME, 'g1', 3600),
+    ).rejects.toMatchObject({ statusCode: 403 });
+  });
+
+  test('non-admin cannot set on group', async () => {
+    chatRepoMock.getChatById.mockResolvedValue({ id: 'g1', type: 'group' });
+    chatRepoMock.getMembership.mockResolvedValue({
+      chat_id: 'g1', user_id: ME, role: 'member',
+    });
+    await expect(
+      chatService.setDisappearing(ME, 'g1', 3600),
+    ).rejects.toMatchObject({ statusCode: 403 });
+  });
+
+  test('rejects invalid value', async () => {
+    chatRepoMock.getChatById.mockResolvedValue({ id: 'g1', type: 'group' });
+    chatRepoMock.getMembership.mockResolvedValue({
+      chat_id: 'g1', user_id: ME, role: 'admin',
+    });
+    await expect(
+      chatService.setDisappearing(ME, 'g1', 'bogus'),
+    ).rejects.toMatchObject({ statusCode: 400 });
+  });
+
+  test('rejects value exceeding max', async () => {
+    chatRepoMock.getChatById.mockResolvedValue({ id: 'g1', type: 'group' });
+    chatRepoMock.getMembership.mockResolvedValue({
+      chat_id: 'g1', user_id: ME, role: 'admin',
+    });
+    await expect(
+      chatService.setDisappearing(ME, 'g1', 60 * 60 * 24 * 366),
+    ).rejects.toMatchObject({ statusCode: 400 });
+  });
+
+  test('admin sets disappearing seconds on group', async () => {
+    chatRepoMock.getChatById.mockResolvedValue({ id: 'g1', type: 'group' });
+    chatRepoMock.getMembership.mockResolvedValue({
+      chat_id: 'g1', user_id: ME, role: 'admin',
+    });
+    chatRepoMock.setDisappearingSeconds.mockResolvedValue({
+      id: 'g1', type: 'group', name: 'G', description: null,
+      join_mode: 'invite_only', disappearing_seconds: 3600,
+      created_by: ME, status: 'active', created_at: new Date(),
+    });
+
+    const dto = await chatService.setDisappearing(ME, 'g1', 3600);
+    expect(chatRepoMock.setDisappearingSeconds).toHaveBeenCalledWith('g1', 3600);
+    expect(dto.disappearingSeconds).toBe(3600);
+  });
+
+  test('member can set on direct chat', async () => {
+    chatRepoMock.getChatById.mockResolvedValue({ id: 'd1', type: 'direct' });
+    chatRepoMock.getMembership.mockResolvedValue({
+      chat_id: 'd1', user_id: ME, role: 'member',
+    });
+    chatRepoMock.setDisappearingSeconds.mockResolvedValue({
+      id: 'd1', type: 'direct', name: null, description: null,
+      join_mode: 'invite_only', disappearing_seconds: null,
+      created_by: ME, status: 'active', created_at: new Date(),
+    });
+
+    const dto = await chatService.setDisappearing(ME, 'd1', null);
+    expect(chatRepoMock.setDisappearingSeconds).toHaveBeenCalledWith('d1', null);
+    expect(dto.disappearingSeconds).toBeNull();
+  });
+
+  test('zero is normalized to null (off)', async () => {
+    chatRepoMock.getChatById.mockResolvedValue({ id: 'g1', type: 'group' });
+    chatRepoMock.getMembership.mockResolvedValue({
+      chat_id: 'g1', user_id: ME, role: 'admin',
+    });
+    chatRepoMock.setDisappearingSeconds.mockResolvedValue({
+      id: 'g1', type: 'group', name: 'G', description: null,
+      join_mode: 'invite_only', disappearing_seconds: null,
+      created_by: ME, status: 'active', created_at: new Date(),
+    });
+
+    await chatService.setDisappearing(ME, 'g1', 0);
+    expect(chatRepoMock.setDisappearingSeconds).toHaveBeenCalledWith('g1', null);
   });
 });
 

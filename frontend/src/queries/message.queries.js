@@ -6,6 +6,7 @@ import {
 } from '@tanstack/react-query';
 import * as messageApi from '@/api/message.api';
 import { useOfflineQueueStore } from '@/stores/offlineQueueStore';
+import { chatKeys } from '@/queries/chat.queries';
 
 const PAGE_SIZE = 50;
 
@@ -129,8 +130,22 @@ export function useSendMessageMutation(chatId) {
 }
 
 export function useMarkSeenMutation(chatId) {
+  const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (messageId) => messageApi.markSeen(chatId, messageId),
+    onSuccess: () => {
+      // Clear the per-chat unread badge in the sidebar as soon as we've
+      // marked the latest message seen. The server is authoritative on
+      // the next refetch, so this is purely an optimistic UX hint.
+      queryClient.setQueryData(chatKeys.list, (chats) => {
+        if (!Array.isArray(chats)) return chats;
+        return chats.map((c) =>
+          c.id === chatId && (c.unreadCount ?? 0) > 0
+            ? { ...c, unreadCount: 0 }
+            : c,
+        );
+      });
+    },
   });
 }
 

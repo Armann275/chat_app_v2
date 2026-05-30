@@ -114,6 +114,19 @@ export function useLeaveChatMutation() {
   });
 }
 
+export function useSetDisappearingMutation(chatId) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (disappearingSeconds) => chatApi.setDisappearing(chatId, disappearingSeconds),
+    onSuccess: (chat) => {
+      queryClient.setQueryData(chatKeys.detail(chatId), (prev) =>
+        prev ? { ...prev, ...chat } : prev,
+      );
+      queryClient.invalidateQueries({ queryKey: chatKeys.list });
+    },
+  });
+}
+
 export function useRequestChatsQuery({ enabled = true } = {}) {
   return useQuery({
     queryKey: chatKeys.requests,
