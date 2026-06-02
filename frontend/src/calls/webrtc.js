@@ -2,7 +2,34 @@ import { getSocket } from '@/socket/client';
 import { useCallStore } from '@/stores/callStore';
 import { SocketEvents } from '@/socket/events';
 
-const DEFAULT_ICE = [{ urls: 'stun:stun.l.google.com:19302' }];
+// STUN lets peers discover their public address; TURN relays media when a
+// direct peer-to-peer path is impossible (most real-world NATs/firewalls).
+// Cross-network calls require TURN — set the VITE_TURN_* vars to a free
+// provider (e.g. metered.ca). Multiple TURN URLs can be comma-separated.
+function buildIceServers() {
+  const servers = [
+    { urls: 'stun:stun.l.google.com:19302' },
+    { urls: 'stun:stun1.l.google.com:19302' },
+  ];
+
+  const turnUrl = import.meta.env.VITE_TURN_URL;
+  const turnUsername = import.meta.env.VITE_TURN_USERNAME;
+  const turnCredential = import.meta.env.VITE_TURN_CREDENTIAL;
+
+  if (turnUrl && turnUsername && turnCredential) {
+    const urls = turnUrl
+      .split(',')
+      .map((u) => u.trim())
+      .filter(Boolean);
+    if (urls.length) {
+      servers.push({ urls, username: turnUsername, credential: turnCredential });
+    }
+  }
+
+  return servers;
+}
+
+const DEFAULT_ICE = buildIceServers();
 
 let pc = null;
 let pendingRemoteCandidates = [];
