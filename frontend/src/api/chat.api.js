@@ -58,6 +58,11 @@ export async function leaveChat(chatId) {
   return data.data;
 }
 
+export async function deleteDirectChat(chatId, mode = 'for_me') {
+  const { data } = await apiClient.delete(`/chats/${chatId}`, { params: { mode } });
+  return data.data;
+}
+
 export async function listRequestChats({ limit = 50, offset = 0 } = {}) {
   const { data } = await apiClient.get('/chats/requests', { params: { limit, offset } });
   return data.data.chats;

@@ -76,6 +76,14 @@ export const setDisappearingValidator = [
 
 export const chatIdParam = [param('id').isUUID()];
 
+export const deleteDirectChatValidator = [
+  param('id').isUUID(),
+  query('mode')
+    .optional()
+    .isIn(['for_me', 'for_everyone'])
+    .withMessage("mode must be 'for_me' or 'for_everyone'"),
+];
+
 export const chatIdAndUserIdParams = [
   param('id').isUUID(),
   param('userId').isUUID(),

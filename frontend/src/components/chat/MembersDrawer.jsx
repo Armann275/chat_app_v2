@@ -4,6 +4,8 @@ import { X, UserPlus, LogOut, Trash2, Shield, ShieldCheck, Pencil } from 'lucide
 import EditChatModal from '@/components/chat/EditChatModal';
 import { toast } from 'sonner';
 import Avatar from '@/components/ui/Avatar';
+import PresenceDot from '@/components/chat/PresenceDot';
+import PresenceStatus from '@/components/chat/PresenceStatus';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Spinner from '@/components/ui/Spinner';
@@ -140,7 +142,14 @@ export default function MembersDrawer({ chat, open, onClose }) {
                   key={member.userId}
                   className="flex items-center gap-3 rounded-md p-2"
                 >
-                  <Avatar src={member.user?.avatarUrl} name={member.user?.username} size="sm" />
+                  <span className="relative">
+                    <Avatar src={member.user?.avatarUrl} name={member.user?.username} size="sm" />
+                    {!isMe && (
+                      <span className="absolute bottom-0 right-0">
+                        <PresenceDot userId={member.userId} />
+                      </span>
+                    )}
+                  </span>
                   <div className="min-w-0 flex-1">
                     <p className="flex items-center gap-1.5 truncate text-sm font-medium text-slate-900 dark:text-slate-100">
                       <span className="truncate">{member.user?.username}</span>
@@ -157,6 +166,13 @@ export default function MembersDrawer({ chat, open, onClose }) {
                     <p className="truncate text-xs text-slate-500 dark:text-slate-400">
                       {member.user?.email}
                     </p>
+                    {!isMe && (
+                      <PresenceStatus
+                        userId={member.userId}
+                        lastSeenAt={member.user?.lastSeenAt}
+                        className="block truncate text-xs text-slate-400 dark:text-slate-500"
+                      />
+                    )}
                   </div>
                   {isGroup && !isMe && iAmAdmin && (
                     <select

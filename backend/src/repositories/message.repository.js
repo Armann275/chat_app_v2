@@ -82,6 +82,11 @@ export async function getByChat(chatId, userId, { limit = 50, offset = 0 } = {})
            SELECT 1 FROM message_deletions md
             WHERE md.message_id = m.id AND md.user_id = $2
          )
+         AND NOT EXISTS (
+           SELECT 1 FROM chat_clears cc
+            WHERE cc.chat_id = m.chat_id AND cc.user_id = $2
+              AND m.created_at <= cc.cleared_at
+         )
          AND (
            c.disappearing_seconds IS NULL
            OR m.created_at > now() - (c.disappearing_seconds || ' seconds')::interval

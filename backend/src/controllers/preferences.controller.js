@@ -19,10 +19,15 @@ export async function getChat(req, res) {
 }
 
 export async function updateChat(req, res) {
-  const preferences = await prefsService.updateChatPrefs(req.user.id, req.params.id, {
-    mutedUntil: req.body.mutedUntil ? new Date(req.body.mutedUntil) : undefined,
-    archived: req.body.archived,
-    notifications: req.body.notifications,
-  });
+  // Only forward keys the client actually sent so an explicit `mutedUntil: null`
+  // (unmute) clears the value, while an absent key leaves it unchanged.
+  const patch = {};
+  if ('mutedUntil' in req.body) {
+    patch.mutedUntil = req.body.mutedUntil ? new Date(req.body.mutedUntil) : null;
+  }
+  if ('archived' in req.body) patch.archived = req.body.archived;
+  if ('notifications' in req.body) patch.notifications = req.body.notifications;
+
+  const preferences = await prefsService.updateChatPrefs(req.user.id, req.params.id, patch);
   res.json({ success: true, data: { preferences } });
 }

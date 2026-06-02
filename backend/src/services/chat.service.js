@@ -3,7 +3,7 @@ import * as userRepo from '../repositories/user.repository.js';
 import * as privacyService from './privacy.service.js';
 import * as friendService from './friend.service.js';
 import * as blockService from './block.service.js';
-import { emitToChat, emitToUser } from '../sockets/realtime.js';
+import { emitToChat, emitToUser, joinUserToChat } from '../sockets/realtime.js';
 import { publicUser } from '../utils/mappers.js';
 import {
   ROLES,
@@ -143,6 +143,11 @@ export async function createDirectChat(currentUserId, otherUserId) {
   await chatRepo.addMember({ chatId: chat.id, userId: currentUserId, role: 'member' });
   await chatRepo.addMember({ chatId: chat.id, userId: otherUserId, role: 'member' });
 
+  // Join both participants' live sockets to the new chat room so messages/calls
+  // flow immediately, without waiting for a reconnect.
+  joinUserToChat(currentUserId, chat.id);
+  joinUserToChat(otherUserId, chat.id);
+
   const dto = toChatDto(chat);
   if (status === 'request') {
     emitToUser(otherUserId, 'chat:request-received', { chat: dto });
@@ -160,6 +165,12 @@ export async function acceptChatRequest(currentUserId, chatId) {
     throw new ForbiddenError('Only the recipient can accept this request');
   }
   const updated = await chatRepo.setChatStatus(chatId, 'active');
+
+  // Ensure both participants' sockets are in the room before broadcasting, so the
+  // now-active chat works immediately for messaging and calls without a refresh.
+  if (chat.requested_by_user_id) joinUserToChat(chat.requested_by_user_id, chatId);
+  joinUserToChat(currentUserId, chatId);
+
   const dto = toChatDto(updated);
   emitToUser(chat.requested_by_user_id, 'chat:request-accepted', { chatId });
   emitToChat(chatId, 'chat:status-changed', { chatId, status: 'active' });
@@ -227,6 +238,7 @@ export async function createChannel(currentUserId, { name, description, memberId
   for (const userId of uniqueMembers) {
     const role = userId === currentUserId ? ROLES.ADMIN : ROLES.MEMBER;
     await chatRepo.addMember({ chatId: chat.id, userId, role });
+    joinUserToChat(userId, chat.id);
   }
 
   return toChatDto(chat);
@@ -250,6 +262,7 @@ export async function createGroupChat(currentUserId, { name, memberIds, descript
   for (const userId of uniqueMembers) {
     const role = userId === currentUserId ? ROLES.ADMIN : ROLES.MEMBER;
     await chatRepo.addMember({ chatId: chat.id, userId, role });
+    joinUserToChat(userId, chat.id);
   }
 
   return toChatDto(chat);
@@ -346,6 +359,7 @@ export async function addMembers(currentUserId, chatId, userIds) {
 
   for (const userId of userIds ?? []) {
     await chatRepo.addMember({ chatId, userId, role: 'member' });
+    joinUserToChat(userId, chatId);
   }
 
   const members = await chatRepo.getMembers(chatId);
@@ -380,7 +394,7 @@ export async function removeMember(currentUserId, chatId, targetUserId) {
 export async function leaveChat(currentUserId, chatId) {
   const chat = await chatRepo.getChatById(chatId);
   if (!chat) throw new NotFoundError('Chat not found');
-  if (chat.type !== 'group') {
+  if (chat.type === 'direct') {
     throw new ValidationError('You cannot leave a direct chat; delete it instead');
   }
 
@@ -396,6 +410,36 @@ export async function leaveChat(currentUserId, chatId) {
 
   const removed = await chatRepo.removeMember(chatId, currentUserId);
   if (removed === 0) throw new ConflictError('Not a member of this chat');
+}
+
+export async function deleteDirectChat(currentUserId, chatId, mode = 'for_me') {
+  if (mode !== 'for_me' && mode !== 'for_everyone') {
+    throw new ValidationError("mode must be 'for_me' or 'for_everyone'");
+  }
+
+  const chat = await chatRepo.getChatById(chatId);
+  if (!chat) throw new NotFoundError('Chat not found');
+  if (chat.type !== 'direct') {
+    throw new ValidationError('Only direct chats can be deleted');
+  }
+  await ensureMembership(chatId, currentUserId);
+
+  if (mode === 'for_everyone') {
+    // Remove the conversation for both participants. Capture members first so we
+    // can notify the other side before the rows (and chat room) are gone.
+    const members = await chatRepo.getMembers(chatId);
+    await chatRepo.deleteChat(chatId); // cascades messages, members, prefs, clears
+    for (const member of members) {
+      if (member.user_id !== currentUserId) {
+        emitToUser(member.user_id, 'chat:deleted', { chatId, mode: 'for_everyone' });
+      }
+    }
+    return { deleted: true, mode };
+  }
+
+  // for_me: hide the conversation only for the current user.
+  await chatRepo.clearChatForUser(chatId, currentUserId);
+  return { deleted: true, mode };
 }
 
 function toLastMessageDto(row) {

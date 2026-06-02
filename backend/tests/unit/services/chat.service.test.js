@@ -13,6 +13,8 @@ const chatRepoMock = {
   setMemberRole: jest.fn(),
   setDisappearingSeconds: jest.fn(),
   countAdmins: jest.fn().mockResolvedValue(2),
+  deleteChat: jest.fn(),
+  clearChatForUser: jest.fn(),
 };
 
 const userRepoMock = {
@@ -227,6 +229,14 @@ describe('chat.service.leaveChat', () => {
     chatRepoMock.removeMember.mockResolvedValue(1);
     await chatService.leaveChat(ME, 'g1');
     expect(chatRepoMock.removeMember).toHaveBeenCalledWith('g1', ME);
+  });
+
+  test('removes self from a channel', async () => {
+    chatRepoMock.getChatById.mockResolvedValue({ id: 'ch1', type: 'channel' });
+    chatRepoMock.getMembership.mockResolvedValue({ role: 'member' });
+    chatRepoMock.removeMember.mockResolvedValue(1);
+    await chatService.leaveChat(ME, 'ch1');
+    expect(chatRepoMock.removeMember).toHaveBeenCalledWith('ch1', ME);
   });
 
   test('throws Conflict if not a member', async () => {
@@ -544,6 +554,62 @@ describe('chat.service.setDisappearing', () => {
 
     await chatService.setDisappearing(ME, 'g1', 0);
     expect(chatRepoMock.setDisappearingSeconds).toHaveBeenCalledWith('g1', null);
+  });
+});
+
+describe('chat.service.deleteDirectChat', () => {
+  test('rejects an invalid mode', async () => {
+    await expect(chatService.deleteDirectChat(ME, 'c1', 'bogus')).rejects.toMatchObject({
+      statusCode: 400,
+    });
+  });
+
+  test('throws NotFound when chat does not exist', async () => {
+    chatRepoMock.getChatById.mockResolvedValue(null);
+    await expect(chatService.deleteDirectChat(ME, 'c1', 'for_me')).rejects.toMatchObject({
+      statusCode: 404,
+    });
+  });
+
+  test('refuses to delete a group chat this way', async () => {
+    chatRepoMock.getChatById.mockResolvedValue({ id: 'c1', type: 'group' });
+    await expect(chatService.deleteDirectChat(ME, 'c1', 'for_me')).rejects.toMatchObject({
+      statusCode: 400,
+    });
+  });
+
+  test('requires membership', async () => {
+    chatRepoMock.getChatById.mockResolvedValue({ id: 'c1', type: 'direct' });
+    chatRepoMock.getMembership.mockResolvedValue(null);
+    await expect(chatService.deleteDirectChat(ME, 'c1', 'for_me')).rejects.toMatchObject({
+      statusCode: 403,
+    });
+  });
+
+  test('for_me clears the chat only for the current user', async () => {
+    chatRepoMock.getChatById.mockResolvedValue({ id: 'c1', type: 'direct' });
+    chatRepoMock.getMembership.mockResolvedValue({ role: 'member' });
+
+    const result = await chatService.deleteDirectChat(ME, 'c1', 'for_me');
+
+    expect(chatRepoMock.clearChatForUser).toHaveBeenCalledWith('c1', ME);
+    expect(chatRepoMock.deleteChat).not.toHaveBeenCalled();
+    expect(result).toEqual({ deleted: true, mode: 'for_me' });
+  });
+
+  test('for_everyone deletes the whole chat for both participants', async () => {
+    chatRepoMock.getChatById.mockResolvedValue({ id: 'c1', type: 'direct' });
+    chatRepoMock.getMembership.mockResolvedValue({ role: 'member' });
+    chatRepoMock.getMembers.mockResolvedValue([
+      { user_id: ME },
+      { user_id: OTHER },
+    ]);
+
+    const result = await chatService.deleteDirectChat(ME, 'c1', 'for_everyone');
+
+    expect(chatRepoMock.deleteChat).toHaveBeenCalledWith('c1');
+    expect(chatRepoMock.clearChatForUser).not.toHaveBeenCalled();
+    expect(result).toEqual({ deleted: true, mode: 'for_everyone' });
   });
 });
 

@@ -24,6 +24,7 @@ export const SocketEvents = {
   ChatRequestAccepted: 'chat:request-accepted',
   ChatRequestRejected: 'chat:request-rejected',
   ChatStatusChanged: 'chat:status-changed',
+  ChatDeleted: 'chat:deleted',
   FriendLocation: 'friend:location',
   FriendLocationCleared: 'friend:location-cleared',
   ChatUpdated: 'chat:updated',

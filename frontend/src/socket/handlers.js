@@ -188,10 +188,30 @@ export function registerSocketHandlers(socket, queryClient) {
     });
   });
 
+  // Auto-expire typing state if a `typing:stop` is ever missed (e.g. the typist
+  // disconnects mid-typing), so the indicator never sticks. Refreshed on each
+  // `typing:start`; the sender re-emits well within this window while typing.
+  const typingTimers = new Map();
+  const clearTypingTimer = (key) => {
+    const t = typingTimers.get(key);
+    if (t) clearTimeout(t);
+    typingTimers.delete(key);
+  };
+
   socket.on(SocketEvents.TypingStart, ({ chatId, userId }) => {
     setUserTyping(chatId, userId, true);
+    const key = `${chatId}:${userId}`;
+    clearTypingTimer(key);
+    typingTimers.set(
+      key,
+      setTimeout(() => {
+        setUserTyping(chatId, userId, false);
+        typingTimers.delete(key);
+      }, 6000),
+    );
   });
   socket.on(SocketEvents.TypingStop, ({ chatId, userId }) => {
+    clearTypingTimer(`${chatId}:${userId}`);
     setUserTyping(chatId, userId, false);
   });
 
@@ -251,6 +271,20 @@ export function registerSocketHandlers(socket, queryClient) {
     queryClient.invalidateQueries({ queryKey: chatKeys.detail(chatId) });
     queryClient.invalidateQueries({ queryKey: chatKeys.list });
     queryClient.invalidateQueries({ queryKey: chatKeys.requests });
+  });
+
+  socket.on(SocketEvents.ChatDeleted, ({ chatId }) => {
+    // The other participant deleted this direct chat for everyone.
+    queryClient.setQueryData(chatKeys.list, (chats) =>
+      Array.isArray(chats) ? chats.filter((c) => c.id !== chatId) : chats,
+    );
+    queryClient.removeQueries({ queryKey: chatKeys.detail(chatId) });
+    queryClient.removeQueries({ queryKey: ['messages', 'list', chatId] });
+    queryClient.invalidateQueries({ queryKey: chatKeys.list });
+    if (isViewingChat(chatId)) {
+      toast('This chat was deleted.');
+      window.location.assign('/');
+    }
   });
 
   socket.on(SocketEvents.ChatUpdated, ({ chat }) => {

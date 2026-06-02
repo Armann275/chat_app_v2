@@ -310,6 +310,21 @@ User-requested in-app AI assistant that answers questions about this project. Us
 
 ---
 
+## Phase 19 — Delete direct chats (ad-hoc)
+
+User-requested ability to delete a direct chat, mirroring the per-message "for me / for everyone" pattern.
+
+- [x] Migration `1714435480000-AddChatClears`: `chat_clears` (chat_id, user_id, cleared_at) PK(chat_id, user_id), CASCADE FKs + `user_id` index
+- [x] Entity `chatClear.entity.js`
+- [x] Repo: `clearChatForUser(chatId, userId)` (upsert cleared_at); `getUserChats` joins `chat_clears` to hide cleared chats until a newer message arrives and to scope last-message/unread; `message.repository.getByChat` hides messages at/before `cleared_at`
+- [x] Service `chat.service.deleteDirectChat(currentUserId, chatId, mode)` — `for_everyone` deletes the chat (cascade) + emits `chat:deleted` to the other member; `for_me` clears for the current user only; direct-chats-only, membership-checked
+- [x] Validator `deleteDirectChatValidator` (mode in for_me|for_everyone); controller `deleteDirect`; route `DELETE /chats/:id?mode=`
+- [x] Real-time: `chat:deleted`
+- [x] Frontend: API `deleteDirectChat`, `useDeleteDirectChatMutation`, delete actions + confirm modal in `DirectChatActionsMenu`, `chat:deleted` socket handler
+- [x] Unit tests (6 covering mode validation, authz, for_me vs for_everyone)
+
+---
+
 ## Definition of Done (per task)
 
 A task is `[x]` only when:

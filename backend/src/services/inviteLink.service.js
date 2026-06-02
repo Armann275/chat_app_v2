@@ -1,7 +1,7 @@
 import { randomBytes } from 'node:crypto';
 import * as inviteRepo from '../repositories/inviteLink.repository.js';
 import * as chatRepo from '../repositories/chat.repository.js';
-import { emitToChat, emitToUser } from '../sockets/realtime.js';
+import { emitToChat, emitToUser, joinUserToChat } from '../sockets/realtime.js';
 import { canManageInvites } from '../utils/chatPermissions.js';
 import {
   NotFoundError,
@@ -128,6 +128,7 @@ export async function redeem(currentUserId, code) {
     role: 'member',
   });
   await inviteRepo.incrementUses(link.id);
+  joinUserToChat(currentUserId, link.chat_id);
 
   emitToChat(link.chat_id, 'chat:member-added', {
     chatId: link.chat_id,
