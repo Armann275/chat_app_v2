@@ -21,6 +21,10 @@ const realtimeMock = {
   emitToUser: jest.fn(),
 };
 
+const systemMessageMock = {
+  createSystemMessage: jest.fn().mockResolvedValue({}),
+};
+
 jest.unstable_mockModule(
   '../../../src/repositories/call.repository.js',
   () => callRepoMock,
@@ -30,6 +34,10 @@ jest.unstable_mockModule(
   () => chatRepoMock,
 );
 jest.unstable_mockModule('../../../src/sockets/realtime.js', () => realtimeMock);
+jest.unstable_mockModule(
+  '../../../src/services/systemMessage.service.js',
+  () => systemMessageMock,
+);
 
 const callService = await import('../../../src/services/call.service.js');
 

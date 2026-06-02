@@ -240,6 +240,7 @@ export async function getUserChats(userId, { limit = 50, offset = 0 } = {}) {
             LEFT JOIN message_receipts r
               ON r.message_id = m.id AND r.user_id = $1
            WHERE m.chat_id = c.id
+             AND m.type = 'user'
              AND m.sender_id <> $1
              AND m.deleted_at IS NULL
              AND r.seen_at IS NULL

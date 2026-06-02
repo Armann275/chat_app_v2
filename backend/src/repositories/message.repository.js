@@ -2,23 +2,30 @@ import { dataSource } from '../config/database.js';
 import { firstRow } from './_util.js';
 
 const MESSAGE_COLUMNS = `
-  id, chat_id, sender_id, content, reply_to_message_id, forwarded_from_message_id, thread_root_id,
+  id, chat_id, sender_id, content, type, system_event, reply_to_message_id, forwarded_from_message_id, thread_root_id,
   edited_at, deleted_at, created_at, updated_at
 `;
 
 const MESSAGE_COLUMNS_M = `
-  m.id, m.chat_id, m.sender_id, m.content, m.reply_to_message_id, m.forwarded_from_message_id, m.thread_root_id,
+  m.id, m.chat_id, m.sender_id, m.content, m.type, m.system_event, m.reply_to_message_id, m.forwarded_from_message_id, m.thread_root_id,
   m.edited_at, m.deleted_at, m.created_at, m.updated_at
 `;
 
-export async function create({ chatId, senderId, content, replyToMessageId = null, forwardedFromMessageId = null, threadRootId = null }) {
+export async function create({
+  chatId, senderId, content, type = 'user', systemEvent = null,
+  replyToMessageId = null, forwardedFromMessageId = null, threadRootId = null,
+}) {
   const result = await dataSource.query(
     `
-      INSERT INTO messages (chat_id, sender_id, content, reply_to_message_id, forwarded_from_message_id, thread_root_id)
-      VALUES ($1, $2, $3, $4, $5, $6)
+      INSERT INTO messages (chat_id, sender_id, content, type, system_event, reply_to_message_id, forwarded_from_message_id, thread_root_id)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
       RETURNING ${MESSAGE_COLUMNS}
     `,
-    [chatId, senderId, content, replyToMessageId, forwardedFromMessageId, threadRootId],
+    [
+      chatId, senderId, content, type,
+      systemEvent ? JSON.stringify(systemEvent) : null,
+      replyToMessageId, forwardedFromMessageId, threadRootId,
+    ],
   );
   return firstRow(result);
 }
@@ -155,6 +162,7 @@ export async function searchInChat(chatId, userId, query, { limit = 50, offset =
         FROM messages m
         JOIN chats c ON c.id = m.chat_id
        WHERE m.chat_id = $1
+         AND m.type = 'user'
          AND m.deleted_at IS NULL
          AND NOT EXISTS (
            SELECT 1 FROM message_deletions md
@@ -182,7 +190,8 @@ export async function searchAll(userId, query, { limit = 50, offset = 0 } = {}) 
         FROM messages m
         JOIN chat_members cm ON cm.chat_id = m.chat_id AND cm.user_id = $1
         JOIN chats c ON c.id = m.chat_id
-       WHERE m.deleted_at IS NULL
+       WHERE m.type = 'user'
+         AND m.deleted_at IS NULL
          AND NOT EXISTS (
            SELECT 1 FROM message_deletions md
             WHERE md.message_id = m.id AND md.user_id = $1

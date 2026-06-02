@@ -21,8 +21,13 @@ const userRepoMock = {
   findById: jest.fn(),
 };
 
+const systemMessageMock = {
+  createSystemMessage: jest.fn().mockResolvedValue({}),
+};
+
 jest.unstable_mockModule('../../../src/repositories/chat.repository.js', () => chatRepoMock);
 jest.unstable_mockModule('../../../src/repositories/user.repository.js', () => userRepoMock);
+jest.unstable_mockModule('../../../src/services/systemMessage.service.js', () => systemMessageMock);
 
 const chatService = await import('../../../src/services/chat.service.js');
 

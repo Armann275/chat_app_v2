@@ -32,6 +32,8 @@ function toMessageDto(row) {
     chatId: row.chat_id,
     senderId: row.sender_id,
     content: row.content,
+    type: row.type ?? 'user',
+    systemEvent: row.system_event ?? null,
     replyToMessageId: row.reply_to_message_id ?? null,
     forwardedFromMessageId: row.forwarded_from_message_id ?? null,
     threadRootId: row.thread_root_id ?? null,
@@ -157,6 +159,9 @@ export async function editMessage(currentUserId, chatId, messageId, content) {
   if (existing.chat_id !== chatId) {
     throw new ForbiddenError('Message does not belong to this chat');
   }
+  if (existing.type === 'system') {
+    throw new ForbiddenError('System messages cannot be edited');
+  }
   if (existing.sender_id !== currentUserId) {
     throw new ForbiddenError('Only the sender can edit this message');
   }
@@ -175,6 +180,9 @@ export async function deleteMessage(currentUserId, chatId, messageId, mode) {
   if (!existing) throw new NotFoundError('Message not found');
   if (existing.chat_id !== chatId) {
     throw new ForbiddenError('Message does not belong to this chat');
+  }
+  if (existing.type === 'system') {
+    throw new ForbiddenError('System messages cannot be deleted');
   }
 
   if (mode === 'for_everyone') {

@@ -3,6 +3,7 @@ import * as userRepo from '../repositories/user.repository.js';
 import * as privacyService from './privacy.service.js';
 import * as friendService from './friend.service.js';
 import * as blockService from './block.service.js';
+import * as systemMessageService from './systemMessage.service.js';
 import { emitToChat, emitToUser, joinUserToChat } from '../sockets/realtime.js';
 import { publicUser } from '../utils/mappers.js';
 import {
@@ -37,6 +38,11 @@ function toChatDto(row) {
 }
 
 const MAX_DISAPPEARING_SECONDS = 60 * 60 * 24 * 365;
+
+async function usernameOf(userId) {
+  const user = await userRepo.findById(userId);
+  return user?.username ?? 'Someone';
+}
 
 function normalizeDisappearingSeconds(value) {
   if (value === null || value === undefined) return null;
@@ -241,6 +247,12 @@ export async function createChannel(currentUserId, { name, description, memberId
     joinUserToChat(userId, chat.id);
   }
 
+  await systemMessageService.createSystemMessage(chat.id, {
+    event: 'channel_created',
+    actorId: currentUserId,
+    actorUsername: await usernameOf(currentUserId),
+  });
+
   return toChatDto(chat);
 }
 
@@ -264,6 +276,12 @@ export async function createGroupChat(currentUserId, { name, memberIds, descript
     await chatRepo.addMember({ chatId: chat.id, userId, role });
     joinUserToChat(userId, chat.id);
   }
+
+  await systemMessageService.createSystemMessage(chat.id, {
+    event: 'group_created',
+    actorId: currentUserId,
+    actorUsername: await usernameOf(currentUserId),
+  });
 
   return toChatDto(chat);
 }
@@ -294,6 +312,15 @@ export async function updateGroupInfo(currentUserId, chatId, { name, description
   });
   const dto = toChatDto(updated);
   emitToChat(chatId, 'chat:updated', { chat: dto });
+
+  if (cleanName !== undefined && cleanName !== chat.name) {
+    await systemMessageService.createSystemMessage(chatId, {
+      event: 'group_renamed',
+      actorId: currentUserId,
+      actorUsername: await usernameOf(currentUserId),
+      name: cleanName,
+    });
+  }
   return dto;
 }
 
@@ -346,6 +373,15 @@ export async function setMemberRole(currentUserId, chatId, targetUserId, newRole
     userId: targetUserId,
     role: newRole,
   });
+
+  await systemMessageService.createSystemMessage(chatId, {
+    event: 'role_changed',
+    actorId: currentUserId,
+    actorUsername: await usernameOf(currentUserId),
+    targetId: targetUserId,
+    targetUsername: await usernameOf(targetUserId),
+    role: newRole,
+  });
   return dto;
 }
 
@@ -357,9 +393,17 @@ export async function addMembers(currentUserId, chatId, userIds) {
   }
   await ensureMembership(chatId, currentUserId);
 
+  const actorUsername = await usernameOf(currentUserId);
   for (const userId of userIds ?? []) {
     await chatRepo.addMember({ chatId, userId, role: 'member' });
     joinUserToChat(userId, chatId);
+    await systemMessageService.createSystemMessage(chatId, {
+      event: 'member_added',
+      actorId: currentUserId,
+      actorUsername,
+      targetId: userId,
+      targetUsername: await usernameOf(userId),
+    });
   }
 
   const members = await chatRepo.getMembers(chatId);
@@ -389,6 +433,22 @@ export async function removeMember(currentUserId, chatId, targetUserId) {
 
   const removed = await chatRepo.removeMember(chatId, targetUserId);
   if (removed === 0) throw new NotFoundError('Member not found in chat');
+
+  if (currentUserId === targetUserId) {
+    await systemMessageService.createSystemMessage(chatId, {
+      event: 'member_left',
+      actorId: currentUserId,
+      actorUsername: await usernameOf(currentUserId),
+    });
+  } else {
+    await systemMessageService.createSystemMessage(chatId, {
+      event: 'member_removed',
+      actorId: currentUserId,
+      actorUsername: await usernameOf(currentUserId),
+      targetId: targetUserId,
+      targetUsername: await usernameOf(targetUserId),
+    });
+  }
 }
 
 export async function leaveChat(currentUserId, chatId) {
@@ -410,6 +470,12 @@ export async function leaveChat(currentUserId, chatId) {
 
   const removed = await chatRepo.removeMember(chatId, currentUserId);
   if (removed === 0) throw new ConflictError('Not a member of this chat');
+
+  await systemMessageService.createSystemMessage(chatId, {
+    event: 'member_left',
+    actorId: currentUserId,
+    actorUsername: await usernameOf(currentUserId),
+  });
 }
 
 export async function deleteDirectChat(currentUserId, chatId, mode = 'for_me') {

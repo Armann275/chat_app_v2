@@ -8,6 +8,7 @@ import {
   useMarkSeenMutation,
 } from '@/queries/message.queries';
 import MessageBubble from './MessageBubble';
+import SystemMessage from './SystemMessage';
 import DateSeparator from './DateSeparator';
 
 function membersById(chat) {
@@ -77,7 +78,9 @@ export default function MessageList({
 
   useEffect(() => {
     if (messages.length === 0 || !me?.id) return;
-    const newest = [...messages].reverse().find((m) => m.senderId !== me.id);
+    const newest = [...messages]
+      .reverse()
+      .find((m) => m.senderId !== me.id && m.type !== 'system');
     if (!newest) return;
     if (lastSeenIdRef.current === newest.id) return;
     if (typeof newest.id === 'string' && newest.id.startsWith('temp-')) return;
@@ -138,6 +141,16 @@ export default function MessageList({
           const next = messages[idx + 1];
           const showDate =
             !prev || !isSameDay(new Date(prev.createdAt), new Date(message.createdAt));
+
+          if (message.type === 'system') {
+            return (
+              <div key={message.id} id={`msg-${message.id}`}>
+                {showDate && <DateSeparator date={new Date(message.createdAt)} />}
+                <SystemMessage message={message} />
+              </div>
+            );
+          }
+
           const isOwn = message.senderId === me?.id;
           const sender = senderMap.get(message.senderId);
           const showAvatar =

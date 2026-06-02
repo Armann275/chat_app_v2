@@ -1,5 +1,6 @@
 import * as callRepo from '../repositories/call.repository.js';
 import * as chatRepo from '../repositories/chat.repository.js';
+import * as systemMessageService from './systemMessage.service.js';
 import { emitToChat, emitToUser } from '../sockets/realtime.js';
 import {
   NotFoundError,
@@ -25,6 +26,15 @@ function toDto(row) {
     startedAt: row.started_at,
     endedAt: row.ended_at ?? null,
   };
+}
+
+function formatDuration(startedAt, endedAt) {
+  const ms = new Date(endedAt).getTime() - new Date(startedAt).getTime();
+  if (!Number.isFinite(ms) || ms <= 0) return null;
+  const total = Math.round(ms / 1000);
+  const mins = Math.floor(total / 60);
+  const secs = total % 60;
+  return `${mins}:${String(secs).padStart(2, '0')}`;
 }
 
 async function ensureMembership(chatId, userId) {
@@ -64,6 +74,11 @@ async function handleMissedTimeout(callId) {
     endedAt: new Date(),
   });
   emitToChat(call.chat_id, 'call:missed', toDto(updated));
+  await systemMessageService.createSystemMessage(call.chat_id, {
+    event: 'call_missed',
+    actorId: call.initiator_id,
+    callType: call.type,
+  });
 }
 
 export async function initiate(currentUserId, chatId, type) {
@@ -133,6 +148,11 @@ export async function reject(currentUserId, callId) {
 
   const dto = toDto(updated);
   emitToChat(call.chat_id, 'call:rejected', { ...dto, rejectedBy: currentUserId });
+  await systemMessageService.createSystemMessage(call.chat_id, {
+    event: 'call_missed',
+    actorId: call.initiator_id,
+    callType: call.type,
+  });
   return dto;
 }
 
@@ -155,6 +175,20 @@ export async function hangup(currentUserId, callId) {
 
   const dto = toDto(updated);
   emitToChat(call.chat_id, 'call:ended', { ...dto, endedBy: currentUserId });
+  if (nextStatus === 'cancelled') {
+    await systemMessageService.createSystemMessage(call.chat_id, {
+      event: 'call_missed',
+      actorId: call.initiator_id,
+      callType: call.type,
+    });
+  } else {
+    await systemMessageService.createSystemMessage(call.chat_id, {
+      event: 'call_ended',
+      actorId: call.initiator_id,
+      callType: call.type,
+      duration: formatDuration(updated.started_at, updated.ended_at),
+    });
+  }
   return dto;
 }
 

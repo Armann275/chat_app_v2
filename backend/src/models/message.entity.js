@@ -8,6 +8,8 @@ export const Message = new EntitySchema({
     chat_id: { type: 'uuid' },
     sender_id: { type: 'uuid' },
     content: { type: 'text' },
+    type: { type: 'varchar', length: 16, default: 'user' },
+    system_event: { type: 'jsonb', nullable: true },
     edited_at: { type: 'timestamptz', nullable: true },
     deleted_at: { type: 'timestamptz', nullable: true },
     created_at: { type: 'timestamptz', createDate: true },

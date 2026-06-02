@@ -64,6 +64,7 @@ function updateChatListForNewMessage(queryClient, message, myId) {
     if (idx === -1) return chats;
     const existing = chats[idx];
     const isMine = message.senderId === myId;
+    const isSystem = message.type === 'system';
     const viewing = isViewingChat(message.chatId);
     const isThreadReply = Boolean(message.threadRootId);
 
@@ -74,8 +75,9 @@ function updateChatListForNewMessage(queryClient, message, myId) {
     const updated = {
       ...existing,
       // Bump unread for any incoming message I haven't seen yet (unless I'm here).
+      // System/event messages never count toward unread (matches the backend).
       unreadCount:
-        !isMine && !viewing
+        !isMine && !viewing && !isSystem
           ? (existing.unreadCount ?? 0) + 1
           : existing.unreadCount ?? 0,
     };
