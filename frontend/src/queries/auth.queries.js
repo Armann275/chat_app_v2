@@ -58,6 +58,18 @@ export function useResendCodeMutation() {
   });
 }
 
+export function useForgotPasswordMutation() {
+  return useMutation({
+    mutationFn: authApi.forgotPassword,
+  });
+}
+
+export function useResetPasswordMutation() {
+  return useMutation({
+    mutationFn: authApi.resetPassword,
+  });
+}
+
 export function useLogoutMutation() {
   const clearAuth = useAuthStore((s) => s.clearAuth);
   const queryClient = useQueryClient();

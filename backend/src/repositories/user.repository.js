@@ -90,6 +90,20 @@ export async function markEmailVerified(id) {
   return firstRow(rows);
 }
 
+export async function updatePassword(id, passwordHash) {
+  const rows = await dataSource.query(
+    `
+      UPDATE users
+         SET password_hash = $2,
+             updated_at    = now()
+       WHERE id = $1
+       RETURNING ${USER_PUBLIC_COLUMNS}
+    `,
+    [id, passwordHash],
+  );
+  return firstRow(rows);
+}
+
 export async function setGeneratedAvatar(id, { avatarUrl, glbUrl }) {
   const rows = await dataSource.query(
     `

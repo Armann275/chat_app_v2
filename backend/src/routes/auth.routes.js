@@ -9,6 +9,8 @@ import {
   loginValidator,
   verifyEmailValidator,
   resendCodeValidator,
+  forgotPasswordValidator,
+  resetPasswordValidator,
 } from '../validators/auth.validator.js';
 
 const verify2faValidator = [
@@ -25,6 +27,8 @@ authRouter.post('/login', loginValidator, validate, auth.login);
 authRouter.post('/2fa/verify', verify2faValidator, validate, auth.verify2fa);
 authRouter.post('/verify-email', verifyEmailValidator, validate, auth.verifyEmail);
 authRouter.post('/resend-code', resendCodeValidator, validate, auth.resendCode);
+authRouter.post('/forgot-password', forgotPasswordValidator, validate, auth.forgotPassword);
+authRouter.post('/reset-password', resetPasswordValidator, validate, auth.resetPassword);
 authRouter.post('/refresh', auth.refresh);
 authRouter.post('/logout', auth.logout);
 authRouter.get('/me', requireAuth, auth.me);

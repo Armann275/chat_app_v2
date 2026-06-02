@@ -20,6 +20,16 @@ export async function resendCode(payload) {
   return data.data;
 }
 
+export async function forgotPassword(payload) {
+  const { data } = await apiClient.post('/auth/forgot-password', payload);
+  return data.data;
+}
+
+export async function resetPassword(payload) {
+  const { data } = await apiClient.post('/auth/reset-password', payload);
+  return data.data;
+}
+
 let refreshInFlight = null;
 
 export async function refresh() {

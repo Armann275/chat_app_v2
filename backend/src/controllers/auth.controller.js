@@ -56,6 +56,16 @@ export async function resendCode(req, res) {
   res.json({ success: true, data: result });
 }
 
+export async function forgotPassword(req, res) {
+  const result = await authService.forgotPassword(req.body);
+  res.json({ success: true, data: result });
+}
+
+export async function resetPassword(req, res) {
+  const result = await authService.resetPassword(req.body);
+  res.json({ success: true, data: result });
+}
+
 export async function login(req, res) {
   const result = await authService.login(req.body, requestMeta(req));
   if (result.requires2fa) {

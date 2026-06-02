@@ -50,23 +50,9 @@ async function getTransporter() {
   return transporterPromise;
 }
 
-const SUBJECT = 'Your verification code';
-
-function buildBody(code) {
-  return {
-    text: `Your verification code is ${code}. It expires in 15 minutes.`,
-    html: `
-      <p>Your verification code is:</p>
-      <p style="font-size:24px;font-weight:bold;letter-spacing:4px;">${code}</p>
-      <p>It expires in 15 minutes. If you did not request this, ignore this email.</p>
-    `,
-  };
-}
-
 // Send over Brevo's HTTPS API. Used in environments where outbound SMTP ports
 // are blocked (e.g. Render free tier).
-async function sendViaBrevo(to, code) {
-  const { text, html } = buildBody(code);
+async function sendViaBrevo({ to, subject, text, html, label }) {
   const res = await fetch('https://api.brevo.com/v3/smtp/email', {
     method: 'POST',
     headers: {
@@ -77,7 +63,7 @@ async function sendViaBrevo(to, code) {
     body: JSON.stringify({
       sender: { name: env.brevo.senderName, email: env.brevo.senderEmail },
       to: [{ email: to }],
-      subject: SUBJECT,
+      subject,
       textContent: text,
       htmlContent: html,
     }),
@@ -88,25 +74,54 @@ async function sendViaBrevo(to, code) {
     throw new Error(`Brevo send failed (${res.status}): ${detail}`);
   }
   const data = await res.json().catch(() => ({}));
-  logger.info('Verification email sent (Brevo)', { messageId: data.messageId });
+  logger.info(`${label} sent (Brevo)`, { messageId: data.messageId });
   return data;
 }
 
-export async function sendVerificationCode(to, code) {
+// Deliver a transactional email via Brevo when configured, otherwise SMTP
+// (Ethereal in dev). `label` is used only for logging.
+async function deliver({ to, subject, text, html, label }) {
   if (env.brevo.apiKey && env.brevo.senderEmail) {
-    return sendViaBrevo(to, code);
+    return sendViaBrevo({ to, subject, text, html, label });
   }
 
   const transporter = await getTransporter();
   const from = env.smtp.from || 'no-reply@chat-app.local';
-  const { text, html } = buildBody(code);
-  const info = await transporter.sendMail({ from, to, subject: SUBJECT, text, html });
+  const info = await transporter.sendMail({ from, to, subject, text, html });
 
   const previewUrl = nodemailer.getTestMessageUrl(info);
   if (previewUrl) {
-    logger.info('Verification email sent (Ethereal preview)', { previewUrl });
+    logger.info(`${label} sent (Ethereal preview)`, { previewUrl });
   } else {
-    logger.info('Verification email sent', { messageId: info.messageId });
+    logger.info(`${label} sent`, { messageId: info.messageId });
   }
   return info;
+}
+
+export async function sendVerificationCode(to, code) {
+  return deliver({
+    to,
+    label: 'Verification email',
+    subject: 'Your verification code',
+    text: `Your verification code is ${code}. It expires in 15 minutes.`,
+    html: `
+      <p>Your verification code is:</p>
+      <p style="font-size:24px;font-weight:bold;letter-spacing:4px;">${code}</p>
+      <p>It expires in 15 minutes. If you did not request this, ignore this email.</p>
+    `,
+  });
+}
+
+export async function sendPasswordResetCode(to, code) {
+  return deliver({
+    to,
+    label: 'Password reset email',
+    subject: 'Your password reset code',
+    text: `Your password reset code is ${code}. It expires in 15 minutes. If you did not request this, ignore this email.`,
+    html: `
+      <p>Use this code to reset your password:</p>
+      <p style="font-size:24px;font-weight:bold;letter-spacing:4px;">${code}</p>
+      <p>It expires in 15 minutes. If you did not request a password reset, you can safely ignore this email.</p>
+    `,
+  });
 }

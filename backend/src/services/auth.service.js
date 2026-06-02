@@ -3,6 +3,7 @@ import { randomUUID, randomInt } from 'node:crypto';
 import * as userRepo from '../repositories/user.repository.js';
 import * as refreshRepo from '../repositories/refreshToken.repository.js';
 import * as verificationRepo from '../repositories/emailVerification.repository.js';
+import * as passwordResetRepo from '../repositories/passwordReset.repository.js';
 import * as emailService from './email.service.js';
 import * as locationService from './location.service.js';
 import * as totpService from './totp.service.js';
@@ -166,6 +167,84 @@ export async function resendVerificationCode({ userId }) {
 
   await issueVerificationCode(user);
   return { sent: true };
+}
+
+async function createAndStoreResetCode(userId) {
+  await passwordResetRepo.invalidateAllForUser(userId);
+  const code = generateCode();
+  const codeHash = await password.hash(code);
+  const expiresAt = new Date(Date.now() + CODE_TTL_MS);
+  await passwordResetRepo.create({ userId, codeHash, expiresAt });
+  return code;
+}
+
+function dispatchPasswordResetEmail(user, code) {
+  if (!process.env.NODE_ENV || process.env.NODE_ENV !== 'production') {
+    logger.info(`[dev] Password reset code for ${user.email}: ${code}`);
+  }
+  emailService.sendPasswordResetCode(user.email, code).catch((err) => {
+    logger.warn('Password reset email send failed (code still valid in DB)', {
+      userId: user.id,
+      email: user.email,
+      message: err.message,
+    });
+  });
+}
+
+// Always resolves with { sent: true } regardless of whether the email exists,
+// so the endpoint never reveals which addresses have accounts.
+export async function forgotPassword({ email }) {
+  const user = await userRepo.findByEmail(email);
+  if (!user || !user.email_verified_at) {
+    return { sent: true };
+  }
+
+  const active = await passwordResetRepo.findActiveByUserId(user.id);
+  if (active) {
+    const since = Date.now() - new Date(active.created_at).getTime();
+    if (since < RESEND_COOLDOWN_MS) {
+      // Within cooldown: silently succeed (don't leak existence or spam).
+      return { sent: true };
+    }
+  }
+
+  const code = await createAndStoreResetCode(user.id);
+  dispatchPasswordResetEmail(user, code);
+  return { sent: true };
+}
+
+export async function resetPassword({ email, code, newPassword }) {
+  const user = await userRepo.findByEmail(email);
+  if (!user) throw new InvalidVerificationCodeError();
+
+  const active = await passwordResetRepo.findActiveByUserId(user.id);
+  if (!active) throw new InvalidVerificationCodeError();
+
+  if (new Date(active.expires_at).getTime() <= Date.now()) {
+    await passwordResetRepo.markConsumed(active.id);
+    throw new VerificationCodeExpiredError();
+  }
+
+  if (active.attempts >= MAX_ATTEMPTS) {
+    throw new TooManyVerificationAttemptsError();
+  }
+
+  const ok = await password.compare(code, active.code_hash);
+  if (!ok) {
+    const attempts = await passwordResetRepo.incrementAttempts(active.id);
+    if (attempts >= MAX_ATTEMPTS) {
+      throw new TooManyVerificationAttemptsError();
+    }
+    throw new InvalidVerificationCodeError();
+  }
+
+  await passwordResetRepo.markConsumed(active.id);
+  const passwordHash = await password.hash(newPassword);
+  await userRepo.updatePassword(user.id, passwordHash);
+  // Revoke all existing sessions so a leaked old password/token can't be reused.
+  await refreshRepo.revokeAllForUser(user.id);
+
+  return { reset: true };
 }
 
 export async function login({ email, password: plain }, meta = {}) {

@@ -34,3 +34,19 @@ export const verifyEmailValidator = [
 export const resendCodeValidator = [
   body('userId').isUUID().withMessage('userId must be a valid UUID'),
 ];
+
+export const forgotPasswordValidator = [
+  body('email').isEmail().withMessage('Must be a valid email').normalizeEmail(),
+];
+
+export const resetPasswordValidator = [
+  body('email').isEmail().withMessage('Must be a valid email').normalizeEmail(),
+  body('code')
+    .isString()
+    .matches(/^\d{6}$/)
+    .withMessage('Code must be 6 digits'),
+  body('newPassword')
+    .isString()
+    .isLength({ min: 8, max: 128 })
+    .withMessage('Password must be 8-128 characters'),
+];
