@@ -9,6 +9,7 @@ import {
   useHangupCallMutation,
 } from '@/queries/call.queries';
 import { answerIncomingCall, cleanup } from '@/calls/webrtc';
+import { startRingtone, stopRingtone } from '@/calls/ringtone';
 
 function VideoTile({ stream, muted, label, mirror = false }) {
   const ref = useRef(null);
@@ -48,6 +49,14 @@ export default function CallOverlay() {
   const acceptMutation = useAcceptCallMutation();
   const rejectMutation = useRejectCallMutation();
   const hangupMutation = useHangupCallMutation();
+
+  // Ring while the call is being established; stop once connected or ended.
+  useEffect(() => {
+    if (status === 'incoming') startRingtone('incoming');
+    else if (status === 'outgoing') startRingtone('outgoing');
+    else stopRingtone();
+    return stopRingtone;
+  }, [status]);
 
   if (status === 'idle' || !call) return null;
 
