@@ -2,6 +2,7 @@ import path from 'node:path';
 import fs from 'node:fs';
 import * as attachmentService from '../services/attachment.service.js';
 import * as attachmentRepo from '../repositories/attachment.repository.js';
+import * as storageService from '../services/storage.service.js';
 import { NotFoundError } from '../errors/errors.js';
 
 const UPLOAD_DIR = path.resolve('uploads');
@@ -11,7 +12,9 @@ export async function upload(req, res) {
     res.status(400).json({ success: false, code: 'VALIDATION_ERROR', message: 'No file uploaded (field "file")' });
     return;
   }
-  const urlPath = `/uploads/files/${req.file.filename}`;
+  const { url: urlPath } = await storageService.persistUpload(req.file, {
+    folder: 'attachments',
+  });
   const dto = await attachmentService.uploadFile(req.user.id, {
     mime: req.file.mimetype,
     size: req.file.size,

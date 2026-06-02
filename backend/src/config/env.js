@@ -59,6 +59,15 @@ export const env = {
     senderName: process.env.BREVO_SENDER_NAME || 'Chat App',
   },
 
+  // Cloudinary for media storage. When configured, uploads go to Cloudinary's
+  // CDN (persistent, absolute HTTPS URLs) instead of the local ./uploads disk,
+  // which is ephemeral on hosts like Render free tier.
+  cloudinary: {
+    cloudName: process.env.CLOUDINARY_CLOUD_NAME || null,
+    apiKey: process.env.CLOUDINARY_API_KEY || null,
+    apiSecret: process.env.CLOUDINARY_API_SECRET || null,
+  },
+
   publicBaseUrl: process.env.PUBLIC_BASE_URL || '',
 
   gemini: {

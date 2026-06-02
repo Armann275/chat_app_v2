@@ -1,7 +1,6 @@
 import * as avatarService from '../services/avatar.service.js';
+import * as storageService from '../services/storage.service.js';
 import { ValidationError } from '../errors/errors.js';
-
-const UPLOAD_PUBLIC_PREFIX = '/uploads/files';
 
 export async function setGenerated(req, res) {
   const { style, seed } = req.body;
@@ -15,7 +14,9 @@ export async function setGenerated(req, res) {
 
 export async function setCustom(req, res) {
   if (!req.file) throw new ValidationError('No file uploaded');
-  const photoUrl = `${UPLOAD_PUBLIC_PREFIX}/${req.file.filename}`;
+  const { url: photoUrl } = await storageService.persistUpload(req.file, {
+    folder: 'avatars',
+  });
   const user = await avatarService.applyCustomPhoto({
     userId: req.user.id,
     photoUrl,
