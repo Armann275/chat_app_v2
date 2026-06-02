@@ -191,20 +191,19 @@ function dispatchPasswordResetEmail(user, code) {
   });
 }
 
-// Always resolves with { sent: true } regardless of whether the email exists,
-// so the endpoint never reveals which addresses have accounts.
 export async function forgotPassword({ email }) {
   const user = await userRepo.findByEmail(email);
-  if (!user || !user.email_verified_at) {
-    return { sent: true };
+  if (!user) {
+    throw new NotFoundError('This email does not exist');
   }
 
   const active = await passwordResetRepo.findActiveByUserId(user.id);
   if (active) {
     const since = Date.now() - new Date(active.created_at).getTime();
     if (since < RESEND_COOLDOWN_MS) {
-      // Within cooldown: silently succeed (don't leak existence or spam).
-      return { sent: true };
+      throw new TooSoonError(
+        `Please wait ${Math.ceil((RESEND_COOLDOWN_MS - since) / 1000)}s before requesting a new code`,
+      );
     }
   }
 

@@ -41,9 +41,11 @@ export default function ForgotPasswordPage() {
     try {
       await forgotMutation.mutateAsync({ email: value });
       setEmail(value);
-      toast.success('If that email has an account, a reset code is on its way.');
-    } catch {
-      toast.error('Could not send reset code. Please try again.');
+      toast.success('A reset code is on its way to your email.');
+    } catch (err) {
+      const message =
+        err?.response?.data?.message ?? 'Could not send reset code. Please try again.';
+      toast.error(message);
     }
   };
 
