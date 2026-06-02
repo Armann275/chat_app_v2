@@ -322,7 +322,7 @@ export function registerSocketHandlers(socket, queryClient) {
     queryClient.invalidateQueries({ queryKey: joinRequestKeys.list(chatId) });
   });
 
-  socket.on(SocketEvents.ChatJoinApproved, ({ chatId }) => {
+  socket.on(SocketEvents.ChatJoinApproved, () => {
     queryClient.invalidateQueries({ queryKey: chatKeys.list });
     toast.success('Your join request was approved');
   });
