@@ -105,6 +105,17 @@ export async function deleteChat(chatId) {
   return Array.isArray(result) ? (result[1] ?? 0) : 0;
 }
 
+export async function clearChatForUser(chatId, userId) {
+  await dataSource.query(
+    `
+      INSERT INTO chat_clears (chat_id, user_id, cleared_at)
+      VALUES ($1, $2, now())
+      ON CONFLICT (chat_id, user_id) DO UPDATE SET cleared_at = now()
+    `,
+    [chatId, userId],
+  );
+}
+
 export async function addMember({ chatId, userId, role = 'member' }) {
   const result = await dataSource.query(
     `
@@ -199,6 +210,8 @@ export async function getUserChats(userId, { limit = 50, offset = 0 } = {}) {
         LEFT JOIN users other_u ON other_u.id = other_cm.user_id
         LEFT JOIN chat_user_preferences cup
           ON cup.chat_id = c.id AND cup.user_id = $1
+        LEFT JOIN chat_clears cc
+          ON cc.chat_id = c.id AND cc.user_id = $1
         LEFT JOIN LATERAL (
           SELECT m.id, m.sender_id, u.username AS sender_username,
                  m.content, m.created_at, m.deleted_at,
@@ -213,6 +226,7 @@ export async function getUserChats(userId, { limit = 50, offset = 0 } = {}) {
                SELECT 1 FROM message_deletions md
                 WHERE md.message_id = m.id AND md.user_id = $1
              )
+             AND (cc.cleared_at IS NULL OR m.created_at > cc.cleared_at)
              AND (
                c.disappearing_seconds IS NULL
                OR m.created_at > now() - (c.disappearing_seconds || ' seconds')::interval
@@ -229,13 +243,18 @@ export async function getUserChats(userId, { limit = 50, offset = 0 } = {}) {
              AND m.sender_id <> $1
              AND m.deleted_at IS NULL
              AND r.seen_at IS NULL
+             AND (cc.cleared_at IS NULL OR m.created_at > cc.cleared_at)
              AND (
                c.disappearing_seconds IS NULL
                OR m.created_at > now() - (c.disappearing_seconds || ' seconds')::interval
              )
         ) uc ON true
-       WHERE c.status = 'active'
-          OR (c.status = 'request' AND c.requested_by_user_id = $1)
+       WHERE (
+               c.status = 'active'
+               OR (c.status = 'request' AND c.requested_by_user_id = $1)
+             )
+         -- Hide chats the user cleared "for me" until a newer message arrives.
+         AND (cc.cleared_at IS NULL OR lm.id IS NOT NULL)
        ORDER BY COALESCE(lm.created_at, c.created_at) DESC
        LIMIT $2 OFFSET $3
     `,

@@ -13,6 +13,7 @@ import {
   chatIdParam,
   chatIdAndUserIdParams,
   listChatsValidator,
+  deleteDirectChatValidator,
 } from '../validators/chat.validator.js';
 
 export const chatRouter = Router();
@@ -28,6 +29,7 @@ chatRouter.post('/:id/accept-request', chatIdParam, validate, chatCtrl.acceptReq
 chatRouter.post('/:id/reject-request', chatIdParam, validate, chatCtrl.rejectRequest);
 chatRouter.get('/:id', chatIdParam, validate, chatCtrl.getOne);
 chatRouter.patch('/:id', updateGroupValidator, validate, chatCtrl.updateGroup);
+chatRouter.delete('/:id', deleteDirectChatValidator, validate, chatCtrl.deleteDirect);
 chatRouter.get('/:id/members', chatIdParam, validate, chatCtrl.getMembers);
 chatRouter.post('/:id/members', addMembersValidator, validate, chatCtrl.addMembers);
 chatRouter.delete(

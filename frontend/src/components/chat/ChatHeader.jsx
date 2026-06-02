@@ -2,6 +2,7 @@ import { Users, User, Settings, Pin, Link as LinkIcon, UserCheck, BarChart3, Meg
 import Avatar from '@/components/ui/Avatar';
 import Button from '@/components/ui/Button';
 import PresenceDot from '@/components/chat/PresenceDot';
+import PresenceStatus from '@/components/chat/PresenceStatus';
 import ChatPrefsMenu from '@/components/chat/ChatPrefsMenu';
 import CallButtons from '@/components/call/CallButtons';
 import DirectChatActionsMenu from '@/components/chat/DirectChatActionsMenu';
@@ -28,9 +29,9 @@ export default function ChatHeader({
     : other?.user?.username ?? 'Direct chat';
   const memberCount = chat.members?.length ?? 0;
   const Icon = isChannel ? Megaphone : isGroupLike ? Users : User;
-  const subtitle = isGroupLike
-    ? `${isChannel ? 'Channel · ' : ''}${memberCount} member${memberCount === 1 ? '' : 's'}`
-    : 'Direct chat';
+  const groupSubtitle = `${isChannel ? 'Channel · ' : ''}${memberCount} member${
+    memberCount === 1 ? '' : 's'
+  }`;
 
   const myMembership = chat.members?.find((m) => m.userId === me?.id);
   const iAmAdmin = myMembership?.role === 'admin';
@@ -56,7 +57,16 @@ export default function ChatHeader({
               <Icon className="h-3.5 w-3.5 opacity-70" />
               <span className="truncate">{title}</span>
             </h2>
-            <p className="truncate text-xs text-slate-500 dark:text-slate-400">{subtitle}</p>
+            <p className="truncate text-xs text-slate-500 dark:text-slate-400">
+              {isDirect && other ? (
+                <PresenceStatus
+                  userId={other.userId}
+                  lastSeenAt={other.user?.lastSeenAt}
+                />
+              ) : (
+                groupSubtitle
+              )}
+            </p>
           </div>
         </div>
         <div className="flex items-center gap-1.5">
@@ -109,6 +119,7 @@ export default function ChatHeader({
           </Button>
           {isDirect && other && (
             <DirectChatActionsMenu
+              chatId={chat.id}
               otherUserId={other.userId}
               otherUsername={other.user?.username}
             />

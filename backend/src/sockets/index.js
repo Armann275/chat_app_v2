@@ -1,7 +1,7 @@
 import { Server as SocketIOServer } from 'socket.io';
 import { socketAuth } from './auth.middleware.js';
 import { registerChatHandlers } from './chat.socket.js';
-import { setRealtimeEmitter, setUserEmitter } from './realtime.js';
+import { setRealtimeEmitter, setUserEmitter, setRoomJoiner } from './realtime.js';
 import { logger } from '../config/logger.js';
 
 const chatRoom = (chatId) => `chat:${chatId}`;
@@ -19,6 +19,9 @@ export function initSockets(httpServer, { corsOrigin }) {
   });
   setUserEmitter((userId, event, payload) => {
     io.to(`user:${userId}`).emit(event, payload);
+  });
+  setRoomJoiner((userId, chatId) => {
+    io.in(`user:${userId}`).socketsJoin(chatRoom(chatId));
   });
 
   logger.info('Socket.io initialized');

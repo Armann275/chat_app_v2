@@ -16,6 +16,7 @@ const chatRepoMock = {
 const realtimeMock = {
   emitToChat: jest.fn(),
   emitToUser: jest.fn(),
+  joinUserToChat: jest.fn(),
   setRealtimeEmitter: jest.fn(),
 };
 

@@ -1,6 +1,6 @@
 import * as joinRepo from '../repositories/joinRequest.repository.js';
 import * as chatRepo from '../repositories/chat.repository.js';
-import { emitToChat, emitToUser } from '../sockets/realtime.js';
+import { emitToChat, emitToUser, joinUserToChat } from '../sockets/realtime.js';
 import { canManageMembers } from '../utils/chatPermissions.js';
 import { publicUser } from '../utils/mappers.js';
 import {
@@ -54,6 +54,7 @@ export async function request(currentUserId, chatId, { message = null } = {}) {
 
   if (chat.join_mode === 'open') {
     await chatRepo.addMember({ chatId, userId: currentUserId, role: 'member' });
+    joinUserToChat(currentUserId, chatId);
     emitToChat(chatId, 'chat:member-added', {
       chatId, userId: currentUserId, via: 'open-join',
     });
@@ -106,6 +107,7 @@ async function decide(currentUserId, chatId, userId, decision) {
 
   if (decision === 'approved') {
     await chatRepo.addMember({ chatId, userId, role: 'member' });
+    joinUserToChat(userId, chatId);
     emitToChat(chatId, 'chat:member-added', {
       chatId, userId, via: 'join-request',
     });

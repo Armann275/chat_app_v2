@@ -34,19 +34,24 @@ export async function getChatPrefs(chatId, userId) {
   return firstRow(result);
 }
 
-export async function upsertChatPrefs(chatId, userId, { mutedUntil, archived, notifications }) {
+export async function upsertChatPrefs(chatId, userId, patch) {
+  // `muted_until` is nullable, so a null can mean either "clear it" or "leave it
+  // alone". Use key presence to disambiguate: only overwrite when the caller
+  // actually included `mutedUntil` (allowing an explicit null to unmute).
+  const setMuted = 'mutedUntil' in patch;
+  const { mutedUntil = null, archived = null, notifications = null } = patch;
   const result = await dataSource.query(
     `
       INSERT INTO chat_user_preferences (chat_id, user_id, muted_until, archived, notifications, updated_at)
       VALUES ($1, $2, $3, COALESCE($4, false), COALESCE($5, 'default'), now())
       ON CONFLICT (chat_id, user_id) DO UPDATE SET
-        muted_until = COALESCE($3, chat_user_preferences.muted_until),
+        muted_until = CASE WHEN $6 THEN $3 ELSE chat_user_preferences.muted_until END,
         archived = COALESCE($4, chat_user_preferences.archived),
         notifications = COALESCE($5, chat_user_preferences.notifications),
         updated_at = now()
       RETURNING chat_id, user_id, muted_until, archived, notifications, updated_at
     `,
-    [chatId, userId, mutedUntil ?? null, archived ?? null, notifications ?? null],
+    [chatId, userId, mutedUntil ?? null, archived ?? null, notifications ?? null, setMuted],
   );
   return firstRow(result);
 }

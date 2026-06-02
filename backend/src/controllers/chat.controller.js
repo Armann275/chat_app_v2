@@ -78,6 +78,15 @@ export async function leave(req, res) {
   res.json({ success: true, data: { left: true } });
 }
 
+export async function deleteDirect(req, res) {
+  const result = await chatService.deleteDirectChat(
+    req.user.id,
+    req.params.id,
+    req.query.mode ?? 'for_me',
+  );
+  res.json({ success: true, data: result });
+}
+
 export async function setDisappearing(req, res) {
   const chat = await chatService.setDisappearing(
     req.user.id,

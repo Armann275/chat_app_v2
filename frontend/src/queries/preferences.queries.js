@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import * as prefsApi from '@/api/preferences.api';
+import { chatKeys } from './chat.queries';
 
 export const prefsKeys = {
   mine: ['preferences', 'mine'],
@@ -40,6 +41,18 @@ export function useUpdateChatPreferencesMutation(chatId) {
     mutationFn: (patch) => prefsApi.updateChatPreferences(chatId, patch),
     onSuccess: (prefs) => {
       queryClient.setQueryData(prefsKeys.forChat(chatId), prefs);
+      // The chat list carries `archived`/`mutedUntil`, so reflect the change there
+      // immediately instead of waiting for a manual refresh.
+      queryClient.setQueryData(chatKeys.list, (chats) =>
+        Array.isArray(chats)
+          ? chats.map((c) =>
+              c.id === chatId
+                ? { ...c, archived: prefs.archived, mutedUntil: prefs.mutedUntil }
+                : c,
+            )
+          : chats,
+      );
+      queryClient.invalidateQueries({ queryKey: chatKeys.list });
     },
   });
 }

@@ -20,6 +20,10 @@ import { cn } from '@/utils/cn';
 
 const MAX_LEN = 4000;
 const TYPING_IDLE_MS = 2500;
+// Re-emit typing:start at most this often while actively typing, so the
+// recipient's typing state stays alive during long messages and can safely
+// auto-expire if a stop event is ever lost.
+const TYPING_HEARTBEAT_MS = 2000;
 const DRAFT_SAVE_MS = 800;
 
 function makeOptimistic({ chatId, senderId, content, replyToMessageId, asThreadReply, pendingAttachments }) {
@@ -97,6 +101,7 @@ export default function MessageInput({
 
   const typingRef = useRef(false);
   const typingTimerRef = useRef(null);
+  const lastTypingEmitRef = useRef(0);
   const draftTimerRef = useRef(null);
   const draftLoadedRef = useRef(false);
 
@@ -121,8 +126,10 @@ export default function MessageInput({
   };
 
   const noteTyping = () => {
-    if (!typingRef.current) {
+    const now = Date.now();
+    if (!typingRef.current || now - lastTypingEmitRef.current > TYPING_HEARTBEAT_MS) {
       typingRef.current = true;
+      lastTypingEmitRef.current = now;
       emitTyping(chatId, true);
     }
     if (typingTimerRef.current) clearTimeout(typingTimerRef.current);

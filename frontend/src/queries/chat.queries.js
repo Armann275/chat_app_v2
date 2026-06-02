@@ -114,6 +114,23 @@ export function useLeaveChatMutation() {
   });
 }
 
+export function useDeleteDirectChatMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ chatId, mode }) => chatApi.deleteDirectChat(chatId, mode),
+    onSuccess: (_data, { chatId }) => {
+      // Drop the chat from the list immediately (for both "for me" and
+      // "for everyone"); the server has already cleared/removed it.
+      queryClient.setQueryData(chatKeys.list, (chats) =>
+        Array.isArray(chats) ? chats.filter((c) => c.id !== chatId) : chats,
+      );
+      queryClient.removeQueries({ queryKey: chatKeys.detail(chatId) });
+      queryClient.removeQueries({ queryKey: ['messages', 'list', chatId] });
+      queryClient.invalidateQueries({ queryKey: chatKeys.list });
+    },
+  });
+}
+
 export function useSetDisappearingMutation(chatId) {
   const queryClient = useQueryClient();
   return useMutation({
