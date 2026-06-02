@@ -50,20 +50,57 @@ async function getTransporter() {
   return transporterPromise;
 }
 
-export async function sendVerificationCode(to, code) {
-  const transporter = await getTransporter();
-  const from = env.smtp.from || 'no-reply@chat-app.local';
-  const info = await transporter.sendMail({
-    from,
-    to,
-    subject: 'Your verification code',
+const SUBJECT = 'Your verification code';
+
+function buildBody(code) {
+  return {
     text: `Your verification code is ${code}. It expires in 15 minutes.`,
     html: `
       <p>Your verification code is:</p>
       <p style="font-size:24px;font-weight:bold;letter-spacing:4px;">${code}</p>
       <p>It expires in 15 minutes. If you did not request this, ignore this email.</p>
     `,
+  };
+}
+
+// Send over Brevo's HTTPS API. Used in environments where outbound SMTP ports
+// are blocked (e.g. Render free tier).
+async function sendViaBrevo(to, code) {
+  const { text, html } = buildBody(code);
+  const res = await fetch('https://api.brevo.com/v3/smtp/email', {
+    method: 'POST',
+    headers: {
+      'api-key': env.brevo.apiKey,
+      'content-type': 'application/json',
+      accept: 'application/json',
+    },
+    body: JSON.stringify({
+      sender: { name: env.brevo.senderName, email: env.brevo.senderEmail },
+      to: [{ email: to }],
+      subject: SUBJECT,
+      textContent: text,
+      htmlContent: html,
+    }),
   });
+
+  if (!res.ok) {
+    const detail = await res.text().catch(() => '');
+    throw new Error(`Brevo send failed (${res.status}): ${detail}`);
+  }
+  const data = await res.json().catch(() => ({}));
+  logger.info('Verification email sent (Brevo)', { messageId: data.messageId });
+  return data;
+}
+
+export async function sendVerificationCode(to, code) {
+  if (env.brevo.apiKey && env.brevo.senderEmail) {
+    return sendViaBrevo(to, code);
+  }
+
+  const transporter = await getTransporter();
+  const from = env.smtp.from || 'no-reply@chat-app.local';
+  const { text, html } = buildBody(code);
+  const info = await transporter.sendMail({ from, to, subject: SUBJECT, text, html });
 
   const previewUrl = nodemailer.getTestMessageUrl(info);
   if (previewUrl) {

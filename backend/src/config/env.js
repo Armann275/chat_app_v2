@@ -51,6 +51,14 @@ export const env = {
     from: process.env.SMTP_FROM || null,
   },
 
+  // Brevo transactional email over HTTPS (works where SMTP ports are blocked,
+  // e.g. Render free tier). Preferred over SMTP when an API key is present.
+  brevo: {
+    apiKey: process.env.BREVO_API_KEY || null,
+    senderEmail: process.env.BREVO_SENDER_EMAIL || process.env.SMTP_FROM || null,
+    senderName: process.env.BREVO_SENDER_NAME || 'Chat App',
+  },
+
   publicBaseUrl: process.env.PUBLIC_BASE_URL || '',
 
   gemini: {
