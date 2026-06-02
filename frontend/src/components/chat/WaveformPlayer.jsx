@@ -154,7 +154,7 @@ export default function WaveformPlayer({ src, peaks, duration, dim }) {
       </button>
 
       <div
-        className="relative flex h-8 flex-1 cursor-pointer items-center gap-px"
+        className="relative flex h-8 min-w-0 flex-1 cursor-pointer items-center gap-px overflow-hidden"
         role="slider"
         aria-valuemin={0}
         aria-valuemax={1}
@@ -184,7 +184,7 @@ export default function WaveformPlayer({ src, peaks, duration, dim }) {
 
       <span
         className={cn(
-          'min-w-[2.5rem] text-right text-xs tabular-nums',
+          'min-w-[2.5rem] shrink-0 text-right text-xs tabular-nums',
           dim ? 'text-indigo-100' : 'text-slate-500 dark:text-slate-400',
         )}
       >
