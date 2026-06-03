@@ -7,6 +7,7 @@ export async function getMe(req, res) {
 
 export async function updateMe(req, res) {
   const user = await userService.updateProfile(req.user.id, {
+    username: req.body.username,
     avatarUrl: req.body.avatarUrl,
     bio: req.body.bio,
   });

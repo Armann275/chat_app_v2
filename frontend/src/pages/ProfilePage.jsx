@@ -21,6 +21,15 @@ import SessionsSection from '@/components/settings/SessionsSection';
 import TwoFactorSection from '@/components/settings/TwoFactorSection';
 
 const profileSchema = z.object({
+  username: z
+    .string()
+    .trim()
+    .min(3, 'Username must be 3-32 characters')
+    .max(32, 'Username must be 3-32 characters')
+    .regex(
+      /^[a-zA-Z0-9_]+$/,
+      'Username may only contain letters, numbers, and underscore',
+    ),
   bio: z
     .string()
     .max(500, 'Bio must be 500 characters or fewer')
@@ -42,18 +51,22 @@ export default function ProfilePage() {
     formState: { errors, isDirty },
   } = useForm({
     resolver: zodResolver(profileSchema),
-    defaultValues: { bio: '' },
+    defaultValues: { username: '', bio: '' },
   });
 
   useEffect(() => {
     if (profileQuery.data) {
-      reset({ bio: profileQuery.data.bio ?? '' });
+      reset({
+        username: profileQuery.data.username ?? '',
+        bio: profileQuery.data.bio ?? '',
+      });
     }
   }, [profileQuery.data, reset]);
 
   const onSubmit = async (values) => {
     try {
       await updateMutation.mutateAsync({
+        username: values.username,
         bio: values.bio?.length ? values.bio : null,
       });
       toast.success('Profile updated');
@@ -184,6 +197,27 @@ export default function ProfilePage() {
       >
         <div className="space-y-1">
           <label
+            htmlFor="username"
+            className="block text-sm font-medium text-slate-700 dark:text-slate-200"
+          >
+            Username
+          </label>
+          <input
+            id="username"
+            type="text"
+            autoComplete="username"
+            className="block w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+            {...register('username')}
+          />
+          {errors.username && (
+            <p className="text-sm text-red-600" role="alert">
+              {errors.username.message}
+            </p>
+          )}
+        </div>
+
+        <div className="space-y-1">
+          <label
             htmlFor="bio"
             className="block text-sm font-medium text-slate-700 dark:text-slate-200"
           >
@@ -207,7 +241,7 @@ export default function ProfilePage() {
           <Button
             type="button"
             variant="secondary"
-            onClick={() => reset({ bio: user.bio ?? '' })}
+            onClick={() => reset({ username: user.username ?? '', bio: user.bio ?? '' })}
             disabled={!isDirty || updateMutation.isPending}
           >
             Reset

@@ -54,17 +54,18 @@ export async function findByEmail(email) {
   return firstRow(rows);
 }
 
-export async function updateProfile(id, { avatarUrl, bio }) {
+export async function updateProfile(id, { username, avatarUrl, bio }) {
   const rows = await dataSource.query(
     `
       UPDATE users
-         SET avatar_url = COALESCE($2, avatar_url),
-             bio        = COALESCE($3, bio),
+         SET username   = COALESCE($2, username),
+             avatar_url = COALESCE($3, avatar_url),
+             bio        = COALESCE($4, bio),
              updated_at = now()
        WHERE id = $1
        RETURNING ${USER_PUBLIC_COLUMNS}
     `,
-    [id, avatarUrl ?? null, bio ?? null],
+    [id, username ?? null, avatarUrl ?? null, bio ?? null],
   );
   return firstRow(rows);
 }

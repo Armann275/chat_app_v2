@@ -1,6 +1,14 @@
 import { body, query } from 'express-validator';
 
 export const updateProfileValidator = [
+  body('username')
+    .optional()
+    .isString()
+    .trim()
+    .isLength({ min: 3, max: 32 })
+    .withMessage('Username must be 3-32 characters')
+    .matches(/^[a-zA-Z0-9_]+$/)
+    .withMessage('Username may only contain letters, numbers, and underscore'),
   body('avatarUrl')
     .optional({ nullable: true })
     .isString()
