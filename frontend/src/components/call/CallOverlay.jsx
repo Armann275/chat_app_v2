@@ -11,6 +11,18 @@ import {
 import { answerIncomingCall, cleanup } from '@/calls/webrtc';
 import { startRingtone, stopRingtone } from '@/calls/ringtone';
 
+// Hidden sink so the remote audio is actually heard on voice calls (video
+// calls play audio through their <video> element instead).
+function RemoteAudio({ stream }) {
+  const ref = useRef(null);
+  useEffect(() => {
+    if (ref.current && stream) {
+      ref.current.srcObject = stream;
+    }
+  }, [stream]);
+  return <audio ref={ref} autoPlay playsInline />;
+}
+
 function VideoTile({ stream, muted, label, mirror = false }) {
   const ref = useRef(null);
   useEffect(() => {
@@ -128,6 +140,8 @@ export default function CallOverlay() {
             <VideoTile stream={localStream} muted label="You" mirror />
           </div>
         )}
+
+        {!isVideo && remoteStream && <RemoteAudio stream={remoteStream} />}
       </div>
 
       <div className="flex items-center justify-center gap-4 border-t border-white/10 px-4 py-4">
